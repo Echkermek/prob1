@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="recipient_types">
+        <item>Группа</item>
+        <item>Студент</item>
+    </string-array>
+    <string-array name="semesters_array">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+    <item name="manual_answers_listener" type="id" />
+    <item name="test_attempts_listener" type="id" />
+</resources>

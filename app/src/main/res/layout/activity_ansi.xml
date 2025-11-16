@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Добавление вариантов ответов"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_gravity="center"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Spinner для выбора теста -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выберите тест:"/>
+
+        <Spinner
+            android:id="@+id/spinnerTest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Spinner для выбора части теста -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выберите часть теста:"/>
+
+        <Spinner
+            android:id="@+id/spinnerPart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Spinner для выбора вопроса -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выберите вопрос:"/>
+
+        <Spinner
+            android:id="@+id/spinnerQuestion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Поле для ответа -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Текст ответа:"/>
+
+        <EditText
+            android:id="@+id/etAnswer"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:gravity="top"
+            android:inputType="textMultiLine"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- CheckBox для правильного ответа -->
+        <CheckBox
+            android:id="@+id/cbIsCorrect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Правильный ответ"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Кнопка добавления -->
+        <Button
+            android:id="@+id/btnAddAnswer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Добавить ответ"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Кнопка просмотра ответов -->
+        <Button
+            android:id="@+id/btnViewAnswers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Просмотр ответов"/>
+
+    </LinearLayout>
+</ScrollView>

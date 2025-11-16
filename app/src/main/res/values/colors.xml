@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#f9e044</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="bezhevyi">#f6f4e6</color>
+    <color name="yellow">#f9e044</color>
+    <color name="lightgreen">#A9C161</color>
+    <color name="darkgreen">#102501</color>
+
+    <color name="green">#4CAF50</color>
+    <color name="red">#F44336</color>
+    <color name="correct_answer">#4CAF50</color> <!-- Зеленый -->
+    <color name="wrong_answer">#F44336</color>  <!-- Красный -->
+    <color name="default_answer">#FFFFFF</color>
+    <color name="light_blue">#A0D2F3</color>
+
+    <color name="transparent_white">#22FFFFFF</color>
+
+    <color name="seleted_color">#B2C5E1A5</color>
+</resources>

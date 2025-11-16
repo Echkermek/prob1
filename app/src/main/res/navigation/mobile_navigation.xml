@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@id/navigation_profile">
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.example.prob1.ui.profile.ProfileFragment"
+        android:label="Profile"
+        tools:layout="@layout/profile_fragment" />
+
+    <fragment
+        android:id="@+id/navigation_lections"
+        android:name="com.example.prob1.ui.lections.LectionsFragment"
+        android:label="Lectures"
+        tools:layout="@layout/fragment_lections" />
+
+    <fragment
+        android:id="@+id/navigation_tests"
+        android:name="com.example.prob1.ui.tests.TestsFragment"
+        android:label="Тесты"
+        tools:layout="@layout/fragment_tests">
+
+        <action
+            android:id="@+id/action_navigation_tests_to_testPartsFragment"
+            app:destination="@id/testPartsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/testPartsFragment"
+        android:name="com.example.prob1.ui.tests.TestPartsFragment"
+        android:label="Части теста">
+        <argument
+            android:name="testId"
+            app:argType="string" />
+
+        <action
+            android:id="@+id/action_testPartsFragment_to_testActivity"
+            app:destination="@id/testActivity" />
+    </fragment>
+
+    <activity
+        android:id="@+id/testActivity"
+        android:name="com.example.prob1.ui.tests.TestActivity"
+        android:label="Тест">
+        <argument
+            android:name="partId"
+            app:argType="string" />
+    </activity>
+
+    <fragment
+        android:id="@+id/navigation_browse"
+        android:name="com.example.prob1.ui.browse.BrowseFragment"
+        android:label="Translate"
+        tools:layout="@layout/fragment_browse" />
+
+    <fragment
+        android:id="@+id/navigation_notifications"
+        android:name="com.example.prob1.ui.notifications.NotificationsFragment"
+        android:label="Messages"
+        tools:layout="@layout/activity_notifications" />
+</navigation>

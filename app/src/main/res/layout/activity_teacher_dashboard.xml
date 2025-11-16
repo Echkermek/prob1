@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/gradient_background"
+    tools:context=".ui.teacher.TeacherMain">
+
+    <ImageView
+        android:id="@+id/teacherImage"
+        android:layout_width="156dp"
+        android:layout_height="145dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="24dp"
+        android:contentDescription="Изображение преподавателя"
+        android:src="@drawable/teacher" />
+
+    <TextView
+        android:id="@+id/welcomeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="24sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="32dp"/>
+
+    <Button
+        android:id="@+id/groupsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:backgroundTint="#207897"
+        android:text="Управление группами"/>
+
+    <Button
+        android:id="@+id/coursesButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#207897"
+        android:text="Управление курсами"/>
+
+    <Button
+        android:id="@+id/calendarButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#207897"
+        android:text="Календарь"/>
+
+    <Button
+        android:id="@+id/notificationsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#207897"
+        android:text="Сообщения"/>
+
+    <Button
+        android:id="@+id/deadlinesButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#207897"
+        android:text="Сроки сдачи"/>
+    <Button
+        android:id="@+id/manualAnswersButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#207897"
+        android:text="Просмотр ответов"/>
+
+    <Button
+        android:id="@+id/btGrades"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#207897"
+        android:text="Просмотр оценок"/>
+
+</LinearLayout>

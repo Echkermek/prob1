@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Мир на ладони</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <!--    <string name="url">http://192.168.31.235:5000/</string>-->
+
+    <string name="url">https://learnremote.pythonanywhere.com/</string>
+
+    <string name="group_name_format">Группа: %s</string>
+    <string name="student_format">Студент %d</string>
+    <string name="you_with_nickname">Вы (%s)</string>
+    <string name="user_info_format">%s: %d монет (Место %d)</string>
+</resources>

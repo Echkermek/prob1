@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/positionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Вопрос 1 из 10"
+            android:textSize="14sp"
+            android:textColor="@color/black"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/questionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Вопрос"
+            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/contentText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Дополнительный контент"
+
+            android:textSize="14sp"
+            android:textColor="@color/white"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <EditText
+            android:id="@+id/manualAnswerInput"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="Введите ваш ответ здесь..."
+            android:gravity="top"
+            android:inputType="textMultiLine"
+            android:textColor="@color/white"
+            android:textColorHint="#AAAAAA"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/submitManualAnswer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Сохранить ответ"
+            android:textColor="#FFFF"
+            android:textSize="16sp"
+            app:backgroundTint="#4D9DC3"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
+
+</ScrollView>

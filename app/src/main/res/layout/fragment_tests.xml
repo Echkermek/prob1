@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -7,19 +8,85 @@
     android:orientation="vertical"
     tools:context=".ui.tests.TestsFragment">
 
-    <TextView
+    <!-- Заголовок и кнопка обновления -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Доступные тесты"
-        android:textSize="27sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:padding="16dp"/>
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="8dp">
 
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Доступные тесты"
+            android:textSize="27sp"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:gravity="center_vertical" />
+
+        <ImageButton
+            android:id="@+id/refreshButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Обновить"
+            android:scaleType="centerInside"
+            android:padding="8dp"
+            app:tint="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Кнопка долгов -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/debtButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:text="Долги"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:backgroundTint="#D32F2F"
+        app:cornerRadius="12dp"
+        app:icon="@android:drawable/stat_notify_error"
+        app:iconTint="#FFFFFF" />
+
+    <!-- Индикатор загрузки -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="16dp"
+        android:visibility="gone" />
+
+    <!-- Сообщение о пустом списке -->
+    <TextView
+        android:id="@+id/emptyStateText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Тесты не найдены"
+        android:textSize="18sp"
+        android:textColor="@color/white"
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="gone" />
+
+    <!-- Список тестов -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerTests"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp"
+        android:clipToPadding="false" />
+
 </LinearLayout>

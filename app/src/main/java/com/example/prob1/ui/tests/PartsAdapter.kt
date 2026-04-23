@@ -24,8 +24,20 @@ class PartsAdapter(private val onPartClick: (String, Boolean, Int, Boolean) -> U
             binding.root.setOnClickListener {
                 if (adapterPosition != RecyclerView.NO_POSITION) {
                     val part = parts[adapterPosition]
-                    checkTestStatus(part.id, part.enterAnswer) { isPassed, attempts ->
-                        onPartClick(part.id, isPassed, attempts, part.enterAnswer)
+
+                    // === ИСПРАВЛЕННАЯ ПРОВЕРКА ===
+                    val hasNoLecture = part.idLectures.isNullOrEmpty() ||
+                            part.idLectures == "not" ||
+                            part.idLectures == "-"
+
+                    if (hasNoLecture) {
+                        // Сразу запускаем без проверки попыток и лекций
+                        onPartClick(part.id, false, 0, part.enterAnswer)
+                    } else {
+                        // Есть реальная лекция — проверяем статус
+                        checkTestStatus(part.id, part.enterAnswer) { isPassed, attempts ->
+                            onPartClick(part.id, isPassed, attempts, part.enterAnswer)
+                        }
                     }
                 }
             }
@@ -69,64 +81,74 @@ class PartsAdapter(private val onPartClick: (String, Boolean, Int, Boolean) -> U
         holder.binding.partTitle.text = part.title
         holder.binding.partNumber.text = "Часть ${part.num}"
 
-        if (userId != null) {
-            if (part.enterAnswer) {
-                // ДЛЯ РУЧНЫХ ТЕСТОВ: просто показываем оценку из test_grades
-                db.collection("test_grades")
-                    .whereEqualTo("userId", userId)
-                    .whereEqualTo("partId", part.id)
-                    .whereEqualTo("isManual", true)
-                    .get()
-                    .addOnSuccessListener { snapshot ->
-                        if (snapshot.isEmpty) {
-                            holder.binding.partStatus.text = "Не пройден"
-                        } else {
-                            val bestScore = snapshot.documents[0].getDouble("bestScore") ?: 0.0
-                            holder.binding.partStatus.text = "Оценка: ${"%.1f".format(bestScore)}"
-                        }
-                    }
-                    .addOnFailureListener {
-                        holder.binding.partStatus.text = "Ошибка"
-                    }
-            } else {
-                // ДЛЯ ОБЫЧНЫХ ТЕСТОВ (оставляем как было)
-                val listener = db.collection("test_grades")
-                    .whereEqualTo("userId", userId)
-                    .whereEqualTo("partId", part.id)
-                    .addSnapshotListener { gradeSnapshot, error ->
-                        if (error != null) {
-                            holder.binding.partStatus.text = "Ошибка"
-                            return@addSnapshotListener
-                        }
+        val hasNoLecture = part.idLectures.isNullOrEmpty() ||
+                part.idLectures == "not" ||
+                part.idLectures == "-"
 
-                        if (gradeSnapshot?.isEmpty == true) {
-                            holder.binding.partStatus.text = "Не пройдено"
-                            return@addSnapshotListener
-                        }
-
-                        val bestScore = gradeSnapshot!!.documents[0].getDouble("bestScore") ?: 0.0
-                        val isPassed = bestScore > 0
-
-                        db.collection("test_attempts")
-                            .whereEqualTo("userId", userId)
-                            .whereEqualTo("partId", part.id)
-                            .get()
-                            .addOnSuccessListener { attemptsSnapshot ->
-                                val attempts = attemptsSnapshot.size()
-                                holder.binding.partStatus.text = when {
-                                    isPassed -> "Пройдено (${"%.1f".format(bestScore)} баллов)"
-                                    attempts > 0 -> "Не пройдено"
-                                    else -> "Не пройдено"
-                                }
-                            }
-                            .addOnFailureListener {
-                                holder.binding.partStatus.text = "Ошибка"
-                            }
-                    }
-                holder.itemView.setTag(R.id.test_attempts_listener, listener)
-            }
-        } else {
+        if (userId == null) {
             holder.binding.partStatus.text = "Не авторизован"
+            return
+        }
+
+        // === ИСПРАВЛЕННАЯ ЛОГИКА ===
+        if (part.enterAnswer) {
+            // Ручной тест (enterAnswer = true)
+            db.collection("test_grades")
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("partId", part.id)
+                .whereEqualTo("isManual", true)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    if (snapshot.isEmpty) {
+                        holder.binding.partStatus.text = "Не пройден"
+                    } else {
+                        val bestScore = snapshot.documents[0].getDouble("bestScore") ?: 0.0
+                        holder.binding.partStatus.text = "Оценка: ${"%.1f".format(bestScore)}"
+                    }
+                }
+                .addOnFailureListener {
+                    holder.binding.partStatus.text = "Ошибка"
+                }
+
+        } else {
+            // Обычный тест (включая тесты с lecId = "not")
+            val listener = db.collection("test_grades")
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("partId", part.id)
+                .addSnapshotListener { gradeSnapshot, error ->
+                    if (error != null) {
+                        holder.binding.partStatus.text = "Ошибка"
+                        return@addSnapshotListener
+                    }
+
+                    if (gradeSnapshot?.isEmpty == true) {
+                        holder.binding.partStatus.text = if (hasNoLecture) "Начать тест" else "Не пройдено"
+                        return@addSnapshotListener
+                    }
+
+                    val bestScore = gradeSnapshot!!.documents[0].getDouble("bestScore") ?: 0.0
+                    val isPassed = bestScore > 0
+
+                    // Показываем попытки
+                    db.collection("test_attempts")
+                        .whereEqualTo("userId", userId)
+                        .whereEqualTo("partId", part.id)
+                        .get()
+                        .addOnSuccessListener { attemptsSnapshot ->
+                            val attempts = attemptsSnapshot.size()
+
+                            holder.binding.partStatus.text = when {
+                                isPassed -> "Пройдено (${"%.1f".format(bestScore)} баллов)"
+                                attempts > 0 -> "Не пройдено"
+                                else -> if (hasNoLecture) "Начать тест" else "Не пройдено"
+                            }
+                        }
+                        .addOnFailureListener {
+                            holder.binding.partStatus.text = "Ошибка"
+                        }
+                }
+
+            holder.itemView.setTag(R.id.test_attempts_listener, listener)
         }
     }
 

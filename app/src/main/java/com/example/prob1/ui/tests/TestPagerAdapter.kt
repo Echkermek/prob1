@@ -10,7 +10,7 @@ class TestPagerAdapter(
     private val questions: List<Question>,
     private val partId: String,
     private val testId: String,
-    private val isManual: Boolean
+    private val isManual: Boolean // этот параметр теперь можно игнорировать
 ) : FragmentStateAdapter(fragmentActivity) {
 
     override fun getItemCount(): Int = questions.size
@@ -18,8 +18,13 @@ class TestPagerAdapter(
     override fun createFragment(position: Int): Fragment {
         val question = questions[position]
 
-        return if (isManual) {
-            // Для ручного теста используем ManualQuestionFragment
+        // Получаем сырые данные вопроса через TestActivity
+        val rawData = (fragmentActivity as? TestActivity)?.getQuestionRawData(question.id)
+
+        val isManualInput = rawData?.get("isManualInput") as? Boolean ?: false
+
+        return if (isManualInput) {
+            // Вопросы с вводом последовательности (Task 2,3,4)
             ManualQuestionFragment.newInstance(
                 questionId = question.id,
                 questionText = question.text,
@@ -30,7 +35,7 @@ class TestPagerAdapter(
                 total = questions.size
             )
         } else {
-            // Для обычного теста используем QuestionFragment
+            // Обычные вопросы с выбором ответа
             QuestionFragment.newInstance(
                 question = question,
                 position = position,

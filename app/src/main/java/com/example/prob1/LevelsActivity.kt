@@ -1,6 +1,7 @@
 package com.example.prob1
 
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +23,7 @@ class LevelsActivity : AppCompatActivity() {
         val level7 = findViewById<ImageView>(R.id.level7)
         val level8 = findViewById<ImageView>(R.id.level8)
 
+        // Настройка обработчиков для уровней
         level2.setOnClickListener { showToast("Сollect 130 coins") }
         level3.setOnClickListener { showToast("Сollect 170 coins") }
         level4.setOnClickListener { showToast("Сollect 240 coins") }
@@ -29,6 +31,8 @@ class LevelsActivity : AppCompatActivity() {
         level6.setOnClickListener { showToast("Сollect 325 coins") }
         level7.setOnClickListener { showToast("Сollect 400 coins") }
         level8.setOnClickListener { showToast("Сollect 460 coins") }
+
+        // Блокировка уровней в зависимости от количества монет
         when {
             coins < 130 -> {
                 lockLevels(level2, level3, level4, level5, level6, level7, level8)
@@ -52,6 +56,11 @@ class LevelsActivity : AppCompatActivity() {
                 lockLevels(level8)
             }
         }
+    }
+
+    // Метод для кнопки назад (вызывается из XML)
+    fun exit(view: View) {
+        finish() // Закрывает текущую активность
     }
 
     private fun showToast(message: String) {

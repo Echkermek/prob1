@@ -3,6 +3,8 @@ package com.example.prob1
 import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
+import android.text.method.HideReturnsTransformationMethod
+import android.text.method.PasswordTransformationMethod
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -19,6 +21,8 @@ class StudentRegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityStudentRegisterBinding
     private val groupsList = mutableListOf<String>()
     private val groupIds = mutableMapOf<String, String>()
+    private var isPasswordVisible = false
+    private var isConfirmPasswordVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +41,83 @@ class StudentRegisterActivity : AppCompatActivity() {
         binding.submitRegister.setOnClickListener {
             registerStudent()
         }
+
+        // Add text watchers for name and surname fields
+        setupNameAndSurnameValidation()
+
+        // Setup password visibility toggles
+        setupPasswordVisibilityToggles()
+    }
+
+    private fun setupPasswordVisibilityToggles() {
+        // Password field toggle
+        binding.passLayout.setEndIconOnClickListener {
+            isPasswordVisible = !isPasswordVisible
+            if (isPasswordVisible) {
+                binding.pass.transformationMethod = HideReturnsTransformationMethod.getInstance()
+                binding.passLayout.setEndIconDrawable(android.R.drawable.ic_menu_close_clear_cancel)
+            } else {
+                binding.pass.transformationMethod = PasswordTransformationMethod.getInstance()
+                binding.passLayout.setEndIconDrawable(android.R.drawable.ic_menu_view)
+            }
+            binding.pass.setSelection(binding.pass.text?.length ?: 0)
+        }
+
+        // Confirm password field toggle
+        binding.passConfirmLayout.setEndIconOnClickListener {
+            isConfirmPasswordVisible = !isConfirmPasswordVisible
+            if (isConfirmPasswordVisible) {
+                binding.passConfirm.transformationMethod = HideReturnsTransformationMethod.getInstance()
+                binding.passConfirmLayout.setEndIconDrawable(android.R.drawable.ic_menu_close_clear_cancel)
+            } else {
+                binding.passConfirm.transformationMethod = PasswordTransformationMethod.getInstance()
+                binding.passConfirmLayout.setEndIconDrawable(android.R.drawable.ic_menu_view)
+            }
+            binding.passConfirm.setSelection(binding.passConfirm.text?.length ?: 0)
+        }
+    }
+
+    private fun setupNameAndSurnameValidation() {
+        binding.Name.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val text = s.toString()
+                if (text.isNotEmpty() && !isValidName(text)) {
+                    binding.Name.error = "Имя может содержать только буквы, пробелы и дефисы"
+                    binding.Name.removeTextChangedListener(this)
+                    val cleanText = text.filter { it.isLetter() || it == ' ' || it == '-' }
+                    binding.Name.setText(cleanText)
+                    binding.Name.setSelection(cleanText.length)
+                    binding.Name.addTextChangedListener(this)
+                } else {
+                    binding.Name.error = null
+                }
+            }
+        })
+
+        binding.Surname.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val text = s.toString()
+                if (text.isNotEmpty() && !isValidName(text)) {
+                    binding.Surname.error = "Фамилия может содержать только буквы, пробелы и дефисы"
+                    binding.Surname.removeTextChangedListener(this)
+                    val cleanText = text.filter { it.isLetter() || it == ' ' || it == '-' }
+                    binding.Surname.setText(cleanText)
+                    binding.Surname.setSelection(cleanText.length)
+                    binding.Surname.addTextChangedListener(this)
+                } else {
+                    binding.Surname.error = null
+                }
+            }
+        })
+    }
+
+    private fun isValidName(name: String): Boolean {
+        val namePattern = Regex("^[A-Za-zА-Яа-я\\s\\-]+$")
+        return namePattern.matches(name)
     }
 
     private fun loadGroups() {
@@ -97,11 +178,11 @@ class StudentRegisterActivity : AppCompatActivity() {
                 if (task.isSuccessful) {
                     saveUserData(name, surname, email, groupName, groupId)
                 } else {
-                    /*Toast.makeText(
+                    Toast.makeText(
                         this,
                         "Ошибка регистрации: ${task.exception?.message}",
                         Toast.LENGTH_SHORT
-                    ).show()*/
+                    ).show()
                 }
             }
     }
@@ -119,26 +200,49 @@ class StudentRegisterActivity : AppCompatActivity() {
         if (TextUtils.isEmpty(name)) {
             binding.Name.error = "Введите имя"
             isValid = false
+        } else if (!isValidName(name)) {
+            binding.Name.error = "Имя может содержать только буквы"
+            isValid = false
+        } else {
+            binding.Name.error = null
         }
+
         if (TextUtils.isEmpty(surname)) {
             binding.Surname.error = "Введите фамилию"
             isValid = false
+        } else if (!isValidName(surname)) {
+            binding.Surname.error = "Фамилия может содержать только буквы"
+            isValid = false
+        } else {
+            binding.Surname.error = null
         }
+
         if (TextUtils.isEmpty(email) || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             binding.mail.error = "Введите корректный email"
             isValid = false
+        } else {
+            binding.mail.error = null
         }
+
         if (TextUtils.isEmpty(password) || password.length < 6) {
             binding.pass.error = "Пароль должен содержать минимум 6 символов"
             isValid = false
+        } else {
+            binding.pass.error = null
         }
+
         if (password != confirmPassword) {
             binding.passConfirm.error = "Пароли не совпадают"
             isValid = false
+        } else {
+            binding.passConfirm.error = null
         }
+
         if (TextUtils.isEmpty(group)) {
             binding.group.error = "Выберите группу из списка"
             isValid = false
+        } else {
+            binding.group.error = null
         }
 
         return isValid

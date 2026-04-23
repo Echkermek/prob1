@@ -113,9 +113,13 @@
             app:strokeWidth="2dp">
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/passLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:hintTextColor="#4D9DC3">
+                app:hintTextColor="#4D9DC3"
+                app:endIconMode="custom"
+                app:endIconDrawable="@android:drawable/ic_menu_view"
+                app:endIconContentDescription="Show password">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/pass"
@@ -139,9 +143,13 @@
             app:strokeWidth="2dp">
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/passConfirmLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:hintTextColor="#4D9DC3">
+                app:hintTextColor="#4D9DC3"
+                app:endIconMode="custom"
+                app:endIconDrawable="@android:drawable/ic_menu_view"
+                app:endIconContentDescription="Show password">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/passConfirm"
@@ -182,7 +190,6 @@
                     android:clickable="true" />
             </com.google.android.material.textfield.TextInputLayout>
         </androidx.cardview.widget.CardView>
-
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/submitRegister"

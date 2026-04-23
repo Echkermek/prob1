@@ -3,13 +3,15 @@ package com.example.prob1.data
 import java.io.Serializable
 import com.google.firebase.Timestamp
 
+
 data class Test(
-    val id: String = "",
-    val title: String = "",
-    val num: Int = 0,
-    val semester: Int = 1,
-    val isAvailable: Boolean = true
-) // Тест теперь универсальный, без привязки к курсу
+    val id: String,
+    val title: String,
+    val num: Int,
+    val semester: Int,
+    val isAvailable: Boolean,
+    val hasParts: Boolean = true  // по умолчанию true для обратной совместимости
+)
 
 data class Part(
     val id: String = "",

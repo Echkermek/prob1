@@ -1,3 +1,4 @@
+// com/example/prob1/ui/notifications/NotificationsFragment.kt
 package com.example.prob1.ui.notifications
 
 import android.os.Bundle
@@ -6,22 +7,25 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.prob1.R
+import com.example.prob1.base.BaseFragment
 import com.example.prob1.data.EventNotification
 import com.example.prob1.data.MessageNotification
 import com.example.prob1.databinding.ActivityNotificationsBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
-class NotificationsFragment : Fragment() {
-    private var _binding: ActivityNotificationsBinding? = null
-    private val binding get() = _binding!!
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
+class NotificationsFragment : BaseFragment<ActivityNotificationsBinding>() {
+
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid
+    private val db = FirebaseFirestore.getInstance()
+
     private lateinit var adapter: NotificationsAdapter
     private val allNotifications = mutableListOf<Any>()
     private var currentGroupId: String? = null
@@ -30,34 +34,46 @@ class NotificationsFragment : Fragment() {
     private enum class FilterType { ALL, EVENTS, MESSAGES }
     private var currentFilter = FilterType.ALL
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = ActivityNotificationsBinding.inflate(inflater, container, false)
-        return binding.root
+    override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?): ActivityNotificationsBinding {
+        return ActivityNotificationsBinding.inflate(inflater, container, false)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
+    override fun onViewCreatedSafe(savedInstanceState: Bundle?) {
+        if (userId == null) {
+            showToast("Не авторизован")
+            showEmptyState()
+            return
+        }
 
         setupRecyclerView()
-        setupButtons()
-        loadUserDataAndNotifications()
+        setupFilterButtons()
+        setupRefreshButton()
+
+        // Подписываемся на данные пользователя из ViewModel
+        observeUserData()
+
+        // Загружаем уведомления
+        loadNotifications()
     }
 
     private fun setupRecyclerView() {
         adapter = NotificationsAdapter { notification ->
-            // Обработка клика на уведомление
+            when (notification) {
+                is EventNotification -> {
+                    Log.d("Notifications", "Clicked event: ${notification.title}")
+                    showToast(notification.title)
+                }
+                is MessageNotification -> {
+                    Log.d("Notifications", "Clicked message: ${notification.text}")
+                }
+            }
         }
+
         binding.notificationsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.notificationsRecyclerView.adapter = adapter
     }
 
-    private fun setupButtons() {
+    private fun setupFilterButtons() {
         updateButtonStyles()
 
         binding.btnAll.setOnClickListener {
@@ -79,244 +95,246 @@ class NotificationsFragment : Fragment() {
         }
     }
 
+    private fun setupRefreshButton() {
+        binding.refreshButton.setOnClickListener {
+            loadNotifications()
+        }
+    }
+
     private fun updateButtonStyles() {
         val activeColor = ContextCompat.getColor(requireContext(), R.color.purple_500)
         val inactiveColor = ContextCompat.getColor(requireContext(), R.color.purple_200)
 
-        binding.btnAll.setBackgroundColor(
-            if (currentFilter == FilterType.ALL) activeColor else inactiveColor
-        )
-        binding.btnEvents.setBackgroundColor(
-            if (currentFilter == FilterType.EVENTS) activeColor else inactiveColor
-        )
-        binding.btnMessages.setBackgroundColor(
-            if (currentFilter == FilterType.MESSAGES) activeColor else inactiveColor
-        )
+        binding.btnAll.setBackgroundColor(if (currentFilter == FilterType.ALL) activeColor else inactiveColor)
+        binding.btnEvents.setBackgroundColor(if (currentFilter == FilterType.EVENTS) activeColor else inactiveColor)
+        binding.btnMessages.setBackgroundColor(if (currentFilter == FilterType.MESSAGES) activeColor else inactiveColor)
     }
 
-    private fun loadUserDataAndNotifications() {
-        binding.progressBar.visibility = View.VISIBLE
-        allNotifications.clear()
-
-        val currentUserId = auth.currentUser?.uid ?: run {
-            binding.progressBar.visibility = View.GONE
-            Log.e("Notifications", "Current user ID is null")
-            return
+    private fun observeUserData() {
+        lifecycleScope.launch {
+            mainViewModel.userData.collect { userData ->
+                userData?.let {
+                    currentGroupId = it.groupId
+                    currentCourseId = it.courseId
+                }
+            }
         }
-
-        // 1. Загружаем группу пользователя
-        db.collection("usersgroup")
-            .whereEqualTo("userId", currentUserId)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                if (!querySnapshot.isEmpty) {
-                    val document = querySnapshot.documents[0]
-                    currentGroupId = document.getString("groupId")
-                    Log.d("Notifications", "User group ID: $currentGroupId")
-
-                    // 2. Находим курс по ID группы
-                    currentGroupId?.let { groupId ->
-                        db.collection("courses")
-                            .whereEqualTo("groupId", groupId)
-                            .get()
-                            .addOnSuccessListener { coursesSnapshot ->
-                                if (!coursesSnapshot.isEmpty) {
-                                    val courseDoc = coursesSnapshot.documents[0]
-                                    currentCourseId = courseDoc.id
-                                    Log.d("Notifications", "User course ID: $currentCourseId")
-                                }
-                                loadNotifications(currentUserId)
-                            }
-                            .addOnFailureListener { e ->
-                                Log.e("Notifications", "Error loading user course", e)
-                                loadNotifications(currentUserId)
-                            }
-                    } ?: run {
-                        loadNotifications(currentUserId)
-                    }
-                } else {
-                    loadNotifications(currentUserId)
-                }
-            }
-            .addOnFailureListener { e ->
-                Log.e("Notifications", "Error loading user group", e)
-                loadNotifications(currentUserId)
-            }
     }
 
-    private fun loadNotifications(userId: String) {
-        loadPersonalMessages(userId)
-        currentGroupId?.let { loadGroupMessages(it) }
-        loadCalendarEvents()
-    }
+    private fun loadNotifications() {
+        launchSafe {
+            try {
+                showLoading(true)
+                allNotifications.clear()
 
-    private fun loadPersonalMessages(userId: String) {
-        db.collection("teacher_messages")
-            .whereEqualTo("recipientId", userId)
-            .get()
-            .addOnSuccessListener { snapshot ->
-                if (!isAdded) return@addOnSuccessListener
-
-                val messages = snapshot.documents.mapNotNull { doc ->
-                    try {
-                        val timestamp = when (val ts = doc.get("timestamp")) {
-                            is com.google.firebase.Timestamp -> ts.toDate().time
-                            is Date -> ts.time
-                            is Long -> ts
-                            else -> System.currentTimeMillis()
-                        }
-
-                        MessageNotification(
-                            id = doc.id,
-                            text = doc.getString("text") ?: "",
-                            recipientId = doc.getString("recipientId") ?: "",
-                            recipientName = doc.getString("recipientName") ?: "",
-                            senderId = doc.getString("senderId") ?: "",
-                            isGroupMessage = false,
-                            timestamp = timestamp
-                        )
-                    } catch (e: Exception) {
-                        Log.e("Notifications", "Error parsing message", e)
-                        null
+                // Если данных пользователя ещё нет, берём из ViewModel
+                if (currentGroupId == null) {
+                    mainViewModel.userData.value?.let {
+                        currentGroupId = it.groupId
+                        currentCourseId = it.courseId
                     }
                 }
 
-                Log.d("Notifications", "Loaded ${messages.size} personal messages")
-                allNotifications.addAll(messages)
+                Log.d("Notifications", "Loading notifications for groupId: $currentGroupId, courseId: $currentCourseId")
+
+                // Загружаем личные сообщения
+                loadPersonalMessages(userId!!)
+
+                // Загружаем групповые сообщения
+                currentGroupId?.let { loadGroupMessages(it) }
+
+                // Загружаем события календаря
+                loadCalendarEvents()
+
+                // Загружаем дедлайны
+                loadDeadlines()
+
+                // Обновляем список
                 updateFilteredNotifications()
                 checkEmptyState()
+
+            } catch (e: Exception) {
+                Log.e("NotificationsFragment", "Error loading notifications", e)
+                showEmptyState()
+            } finally {
+                showLoading(false)
             }
-            .addOnFailureListener { e ->
-                Log.e("Notifications", "Error loading personal messages", e)
-                checkEmptyState()
-            }
-    }
-
-    private fun loadGroupMessages(groupId: String) {
-        db.collection("teacher_messages")
-            .whereEqualTo("recipientId", groupId)
-            .get()
-            .addOnSuccessListener { snapshot ->
-                if (!isAdded) return@addOnSuccessListener
-
-                val messages = snapshot.documents.mapNotNull { doc ->
-                    try {
-                        val timestamp = when (val ts = doc.get("timestamp")) {
-                            is com.google.firebase.Timestamp -> ts.toDate().time
-                            is Date -> ts.time
-                            is Long -> ts
-                            else -> System.currentTimeMillis()
-                        }
-
-                        MessageNotification(
-                            id = doc.id,
-                            text = doc.getString("text") ?: "",
-                            recipientId = doc.getString("recipientId") ?: "",
-                            recipientName = doc.getString("recipientName") ?: "",
-                            senderId = doc.getString("senderId") ?: "",
-                            isGroupMessage = true,
-                            timestamp = timestamp
-                        )
-                    } catch (e: Exception) {
-                        Log.e("Notifications", "Error parsing group message", e)
-                        null
-                    }
-                }
-
-                Log.d("Notifications", "Loaded ${messages.size} group messages")
-                allNotifications.addAll(messages)
-                updateFilteredNotifications()
-                checkEmptyState()
-            }
-            .addOnFailureListener { e ->
-                Log.e("Notifications", "Error loading group messages", e)
-                checkEmptyState()
-            }
-    }
-
-    private fun loadCalendarEvents() {
-        val query = if (currentCourseId != null) {
-            db.collection("calendar_events")
-                .whereEqualTo("courseId", currentCourseId)
-        } else {
-            db.collection("calendar_events")
         }
-
-        query.get()
-            .addOnSuccessListener { snapshot ->
-                if (!isAdded) return@addOnSuccessListener
-
-                val events = snapshot.documents.mapNotNull { doc ->
-                    try {
-                        val isDeadline = doc.getBoolean("isDeadline") ?: false
-                        EventNotification(
-                            id = doc.id,
-                            title = doc.getString("testTitle") ?: doc.getString("description") ?: "Без названия",
-                            description = doc.getString("description") ?: "",
-                            date = doc.getString("date"),
-                            isDeadline = isDeadline,
-                            timestamp = doc.getLong("createdAt") ?: doc.getLong("timestamp") ?: System.currentTimeMillis(),
-                            courseId = doc.getString("courseId")
-                        ).takeIf { shouldShowEvent(it) }
-                    } catch (e: Exception) {
-                        Log.e("Notifications", "Error parsing event", e)
-                        null
-                    }
-                }
-
-                Log.d("Notifications", "Loaded ${events.size} calendar events")
-                allNotifications.addAll(events)
-                updateFilteredNotifications()
-                checkEmptyState()
-            }
-            .addOnFailureListener { e ->
-                Log.e("Notifications", "Error loading events", e)
-                checkEmptyState()
-            }
     }
 
-    private fun checkEmptyState() {
-        if (!isAdded) return
+    private suspend fun loadPersonalMessages(userId: String) {
+        try {
+            val snapshot = db.collection("teacher_messages")
+                .whereEqualTo("recipientId", userId)
+                .get()
+                .await()
 
-        binding.progressBar.visibility = View.GONE
-        if (allNotifications.isEmpty()) {
-            binding.emptyState.visibility = View.VISIBLE
-            binding.notificationsRecyclerView.visibility = View.GONE
-        } else {
-            binding.emptyState.visibility = View.GONE
-            binding.notificationsRecyclerView.visibility = View.VISIBLE
+            Log.d("Notifications", "Personal messages found: ${snapshot.size()}")
+
+            snapshot.documents.forEach { doc ->
+                try {
+                    val timestamp = when (val ts = doc.get("timestamp")) {
+                        is com.google.firebase.Timestamp -> ts.toDate().time
+                        is Date -> ts.time
+                        is Long -> ts
+                        else -> System.currentTimeMillis()
+                    }
+
+                    val message = MessageNotification(
+                        id = doc.id,
+                        text = doc.getString("text") ?: "",
+                        recipientId = doc.getString("recipientId") ?: "",
+                        recipientName = doc.getString("recipientName") ?: "",
+                        senderId = doc.getString("senderId") ?: "",
+                        isGroupMessage = false,
+                        timestamp = timestamp
+                    )
+                    allNotifications.add(message)
+                } catch (e: Exception) {
+                    Log.e("Notifications", "Error parsing personal message", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Notifications", "Error loading personal messages", e)
+        }
+    }
+
+    private suspend fun loadGroupMessages(groupId: String) {
+        try {
+            val snapshot = db.collection("teacher_messages")
+                .whereEqualTo("recipientId", groupId)
+                .get()
+                .await()
+
+            Log.d("Notifications", "Group messages found: ${snapshot.size()}")
+
+            snapshot.documents.forEach { doc ->
+                try {
+                    val timestamp = when (val ts = doc.get("timestamp")) {
+                        is com.google.firebase.Timestamp -> ts.toDate().time
+                        is Date -> ts.time
+                        is Long -> ts
+                        else -> System.currentTimeMillis()
+                    }
+
+                    val message = MessageNotification(
+                        id = doc.id,
+                        text = doc.getString("text") ?: "",
+                        recipientId = doc.getString("recipientId") ?: "",
+                        recipientName = doc.getString("recipientName") ?: "",
+                        senderId = doc.getString("senderId") ?: "",
+                        isGroupMessage = true,
+                        timestamp = timestamp
+                    )
+                    allNotifications.add(message)
+                } catch (e: Exception) {
+                    Log.e("Notifications", "Error parsing group message", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Notifications", "Error loading group messages", e)
+        }
+    }
+
+    private suspend fun loadCalendarEvents() {
+        try {
+            val query = if (currentGroupId != null) {
+                db.collection("calendar_events")
+                    .whereEqualTo("groupId", currentGroupId)
+            } else {
+                db.collection("calendar_events")
+            }
+
+            val snapshot = query.get().await()
+
+            Log.d("Notifications", "Calendar events found: ${snapshot.size()}")
+
+            snapshot.documents.forEach { doc ->
+                try {
+                    val dateStr = doc.getString("date")
+                    val timestamp = doc.getLong("createdAt") ?: System.currentTimeMillis()
+
+                    val event = EventNotification(
+                        id = doc.id,
+                        title = doc.getString("description") ?: "Событие",
+                        description = doc.getString("description") ?: "",
+                        date = dateStr,
+                        isDeadline = false,
+                        timestamp = timestamp,
+                        courseId = doc.getString("courseId"),
+                        courseName = doc.getString("courseName")
+                    )
+
+                    if (shouldShowEvent(event)) {
+                        allNotifications.add(event)
+                    }
+                } catch (e: Exception) {
+                    Log.e("Notifications", "Error parsing calendar event", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Notifications", "Error loading calendar events", e)
+        }
+    }
+
+    private suspend fun loadDeadlines() {
+        try {
+            if (currentGroupId == null) return
+
+            val snapshot = db.collection("deadlines")
+                .whereEqualTo("groupId", currentGroupId)
+                .get()
+                .await()
+
+            Log.d("Notifications", "Deadlines found: ${snapshot.size()}")
+
+            snapshot.documents.forEach { doc ->
+                try {
+                    val dateStr = doc.getString("deadline")
+                    val timestamp = doc.getLong("createdAt") ?: System.currentTimeMillis()
+
+                    val event = EventNotification(
+                        id = doc.id,
+                        title = doc.getString("testTitle") ?: "Дедлайн",
+                        description = "Срок сдачи: ${doc.getString("testTitle") ?: "Тест"}",
+                        date = dateStr,
+                        isDeadline = true,
+                        timestamp = timestamp,
+                        courseId = currentCourseId,
+                        courseName = doc.getString("groupName")
+                    )
+
+                    if (shouldShowEvent(event)) {
+                        allNotifications.add(event)
+                    }
+                } catch (e: Exception) {
+                    Log.e("Notifications", "Error parsing deadline", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Notifications", "Error loading deadlines", e)
         }
     }
 
     private fun shouldShowEvent(event: EventNotification): Boolean {
-        // Если у события нет courseId, показываем его всем
-        if (event.courseId == null) return true
-
-        // Показываем только события для текущего курса пользователя
-        if (currentCourseId != null && event.courseId != currentCourseId) {
-            return false
-        }
-
-        // Остальная логика фильтрации по дате
         if (event.date == null) return true
 
         return try {
-            val eventDate = parseDate(event.date!!)
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val eventDate = sdf.parse(event.date) ?: return true
             val today = Calendar.getInstance()
+            val eventCal = Calendar.getInstance().apply { time = eventDate }
 
-            val diffInMillis = eventDate.timeInMillis - today.timeInMillis
+            val diffInMillis = eventCal.timeInMillis - today.timeInMillis
             val diffInDays = diffInMillis / (1000 * 60 * 60 * 24)
 
             diffInDays in -7..30
         } catch (e: Exception) {
-            Log.e("Notifications", "Error checking event date", e)
             true
         }
     }
 
     private fun updateFilteredNotifications() {
-        if (!isAdded) return
-
         val filteredList = when (currentFilter) {
             FilterType.ALL -> allNotifications
             FilterType.EVENTS -> allNotifications.filterIsInstance<EventNotification>()
@@ -330,23 +348,31 @@ class NotificationsFragment : Fragment() {
                 else -> 0L
             }
         }
+
         adapter.submitList(sorted)
-        checkEmptyState()
+        Log.d("Notifications", "Showing ${sorted.size} notifications (filter: $currentFilter)")
     }
 
-    private fun parseDate(dateStr: String): Calendar {
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val date = sdf.parse(dateStr) ?: Date()
-            Calendar.getInstance().apply { time = date }
-        } catch (e: Exception) {
-            Log.e("Notifications", "Error parsing date", e)
-            Calendar.getInstance()
+    private fun checkEmptyState() {
+        if (allNotifications.isEmpty()) {
+            showEmptyState()
+        } else {
+            showContent()
         }
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+    private fun showLoading(show: Boolean) {
+        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.refreshButton.isEnabled = !show
+    }
+
+    private fun showEmptyState() {
+        binding.emptyState.visibility = View.VISIBLE
+        binding.notificationsRecyclerView.visibility = View.GONE
+    }
+
+    private fun showContent() {
+        binding.emptyState.visibility = View.GONE
+        binding.notificationsRecyclerView.visibility = View.VISIBLE
     }
 }

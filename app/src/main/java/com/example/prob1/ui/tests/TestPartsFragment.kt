@@ -1,3 +1,4 @@
+// com/example/prob1/ui/tests/TestPartsFragment.kt
 package com.example.prob1.ui.tests
 
 import android.content.Intent
@@ -6,122 +7,171 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.prob1.LectionWebViewActivity
-import com.example.prob1.R
+import com.example.prob1.base.BaseFragment
 import com.example.prob1.data.Part
+import com.example.prob1.data.database.repository.LectionRepository
+import com.example.prob1.data.database.repository.TestRepository
 import com.example.prob1.databinding.FragmentTestPartsBinding
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
-class TestPartsFragment : Fragment() {
-    private var _binding: FragmentTestPartsBinding? = null
-    private val binding get() = _binding!!
-    private val db = Firebase.firestore
-    private var testId: String? = null
+class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
+
     private val userId = FirebaseAuth.getInstance().currentUser?.uid
+    private lateinit var testRepository: TestRepository
+    private lateinit var lectionRepository: LectionRepository
+
+    private var testId: String? = null
+    private var hasParts: Boolean = true
+
+    private lateinit var partsAdapter: PartsAdapter
+
+    override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentTestPartsBinding {
+        return FragmentTestPartsBinding.inflate(inflater, container, false)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         testId = arguments?.getString("testId")
+        hasParts = arguments?.getBoolean("hasParts") ?: true
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        _binding = FragmentTestPartsBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+    override fun onViewCreatedSafe(savedInstanceState: Bundle?) {
+        testRepository = TestRepository(requireContext())
+        lectionRepository = LectionRepository(requireContext())
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
-        loadParts()
+        setupBackButton()
+        setupRefreshButton()
+
+        if (userId == null) {
+            showToast("Не авторизован")
+            return
+        }
+
+        if (!hasParts) {
+            startTestDirectly()
+        } else {
+            loadParts()
+        }
     }
 
     private fun setupRecyclerView() {
+        partsAdapter = PartsAdapter { partId, _, attempts, isManual ->
+            launchSafe {
+                checkAndStartPart(partId, attempts, isManual)
+            }
+        }
+
         binding.partsRecycler.layoutManager = LinearLayoutManager(requireContext())
-        binding.partsRecycler.adapter = PartsAdapter { partId, _, attempts, isManual ->
-            lifecycleScope.launch {
-                // РУЧНЫЕ ТЕСТЫ — БЕЗ ПРОВЕРКИ ЛЕКЦИИ
-                if (isManual) {
-                    if (hasManualAnswer(partId)) {
-                        AlertDialog.Builder(requireContext())
-                            .setMessage("Вы уже отправили ответ. Ожидайте оценку.")
-                            .setPositiveButton("OK", null).show()
-                    } else {
-                        startTest(partId, isManual)
-                    }
-                    return@launch
-                }
+        binding.partsRecycler.adapter = partsAdapter
+    }
 
-                // ОБЫЧНЫЕ ТЕСТЫ — ПРОВЕРЯЕМ ЛЕКЦИЮ
-                val lectionId = getLectionId(partId) ?: run {
-                    Toast.makeText(requireContext(), "Лекция не привязана", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
+    private fun setupBackButton() {
+        binding.backButton.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+    }
 
-                if (lectionId.isEmpty()) {
-                    Toast.makeText(requireContext(), "Лекция не указана", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
+    private fun setupRefreshButton() {
+        binding.refreshButton.setOnClickListener {
+            loadParts(forceRefresh = true)
+        }
+    }
 
-                val readCount = getReadCount(lectionId)
+    private suspend fun checkAndStartPart(partId: String, attempts: Int, isManual: Boolean) {
+        try {
+            val part = testRepository.getPartsForTest(testId!!).find { it.id == partId }
+            val lecId = part?.lecId
 
-                if (readCount > attempts) {
-                    startTest(partId, isManual)
-                } else {
-                    val lectionTitle = getLectionTitle(lectionId) ?: "лекцию"
-                    val lectionNum = getLectionNum(lectionId) ?: ""
+            val hasNoRealLecture = lecId.isNullOrEmpty() || lecId == "not" || lecId == "-"
+
+            if (hasNoRealLecture) {
+                startTest(partId, isManual)
+                return
+            }
+
+            val readCount = lectionRepository.getReadCount(userId!!, lecId!!)
+
+            if (readCount > attempts) {
+                startTest(partId, isManual)
+            } else {
+                val lection = lectionRepository.getLectionById(lecId)
+                val lectionTitle = lection?.name ?: "лекцию"
+                val lectionNum = lection?.num ?: ""
+
+                if (isUiSafe) {
                     AlertDialog.Builder(requireContext())
-                        .setMessage("Прочитайте $lectionTitle $lectionNum")
+                        .setTitle("Лекция не прочитана")
+                        .setMessage("Прочитайте $lectionTitle $lectionNum перед прохождением теста")
                         .setPositiveButton("OK", null)
                         .show()
                 }
             }
+        } catch (e: Exception) {
+            Log.e("TestPartsFragment", "Error checking part access", e)
+            showToast("Ошибка проверки доступа")
         }
     }
 
-    private suspend fun getLectionId(partId: String): String? {
-        return db.document("tests/$testId/parts/$partId").get().await().getString("lecId")
+    private fun startTestDirectly() {
+        launchSafe {
+            try {
+                showLoading(true)
+
+                testRepository.preloadFullTest(testId!!)
+
+                showLoading(false)
+
+                val intent = Intent(requireActivity(), TestActivity::class.java).apply {
+                    putExtra("testId", testId)
+                    putExtra("partId", testId)
+                    putExtra("isManual", false)
+                    putExtra("hasParts", false)
+                }
+                startActivity(intent)
+
+            } catch (e: Exception) {
+                showLoading(false)
+                Log.e("TestPartsFragment", "Error loading test", e)
+                showToast("Ошибка загрузки теста: ${e.message}")
+            }
+        }
     }
 
-    private suspend fun getLectionTitle(lectionId: String): String? {
-        return db.document("lections/$lectionId").get().await().getString("name")
-    }
+    private fun loadParts(forceRefresh: Boolean = false) {
+        launchSafe {
+            try {
+                showLoading(true)
 
-    private suspend fun getLectionNum(lectionId: String): String? {
-        return db.document("lections/$lectionId").get().await().getString("num")
-    }
+                val partEntities = testRepository.getPartsForTest(testId!!, forceRefresh)
 
-    private suspend fun isLectureRead(lectionId: String): Boolean {
-        val snap = db.collection("user_lections")
-            .whereEqualTo("userId", userId)
-            .whereEqualTo("lectionId", lectionId)
-            .get().await()
-        return !snap.isEmpty
-    }
+                val parts = partEntities.map { entity ->
+                    Part(
+                        id = entity.id,
+                        title = entity.title,
+                        num = entity.num,
+                        enterAnswer = entity.enterAnswer,
+                        idLectures = entity.lecId ?: ""
+                    )
+                }.sortedBy { it.num }
 
-    private suspend fun getReadCount(lectionId: String): Int {
-        val snap = db.collection("user_lections")
-            .whereEqualTo("userId", userId)
-            .whereEqualTo("lectionId", lectionId)
-            .get().await()
-        return if (snap.isEmpty) 0 else snap.documents[0].getLong("readCount")?.toInt() ?: 0
-    }
+                partsAdapter.submitList(parts)
 
-    private suspend fun hasManualAnswer(partId: String): Boolean {
-        val snap = db.collection("manual_answers")
-            .whereEqualTo("userId", userId)
-            .whereEqualTo("partId", partId)
-            .get().await()
-        return !snap.isEmpty
+                if (parts.isEmpty()) {
+                    showEmptyState("Части теста не найдены")
+                } else {
+                    showContent()
+                }
+
+            } catch (e: Exception) {
+                Log.e("TestPartsFragment", "Error loading parts", e)
+                showEmptyState("Ошибка загрузки: ${e.message}")
+            } finally {
+                showLoading(false)
+            }
+        }
     }
 
     private fun startTest(partId: String, isManual: Boolean) {
@@ -129,30 +179,24 @@ class TestPartsFragment : Fragment() {
             putExtra("partId", partId)
             putExtra("testId", testId)
             putExtra("isManual", isManual)
+            putExtra("hasParts", true)
         }
         startActivity(intent)
     }
 
-    private fun loadParts() {
-        testId?.let { id ->
-            lifecycleScope.launch {
-                val snap = db.collection("tests/$id/parts").get().await()
-                val parts = snap.documents.mapNotNull {
-                    Part(
-                        id = it.id,
-                        title = it.getString("title") ?: "",
-                        num = it.getLong("num")?.toInt() ?: 0,
-                        enterAnswer = it.getBoolean("enterAnswer") ?: false,
-                        idLectures = it.getString("lecId") ?: ""
-                    )
-                }.sortedBy { it.num }
-                (binding.partsRecycler.adapter as PartsAdapter).submitList(parts)
-            }
-        }
+    private fun showLoading(show: Boolean) {
+        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.refreshButton.isEnabled = !show
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+    private fun showEmptyState(message: String) {
+        binding.emptyStateText.text = message
+        binding.emptyStateText.visibility = View.VISIBLE
+        binding.partsRecycler.visibility = View.GONE
+    }
+
+    private fun showContent() {
+        binding.emptyStateText.visibility = View.GONE
+        binding.partsRecycler.visibility = View.VISIBLE
     }
 }

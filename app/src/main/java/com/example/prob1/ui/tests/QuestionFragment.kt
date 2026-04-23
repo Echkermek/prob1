@@ -12,6 +12,7 @@ import com.example.prob1.data.Question
 import com.example.prob1.databinding.FragmentQuestionBinding
 
 class QuestionFragment : Fragment() {
+
     private var _binding: FragmentQuestionBinding? = null
     private val binding get() = _binding!!
 
@@ -42,13 +43,14 @@ class QuestionFragment : Fragment() {
             currentPosition = it.getInt(ARG_POSITION, 0)
             totalQuestions = it.getInt(ARG_TOTAL, 0)
 
-            // ЛОГИ ДЛЯ ОТЛАДКИ
             Log.d("QuestionFragment", "position=$currentPosition, total=$totalQuestions")
         }
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View {
         _binding = FragmentQuestionBinding.inflate(inflater, container, false)
         return binding.root
@@ -58,22 +60,19 @@ class QuestionFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupViews()
         loadAnswers()
-
-        // Убедимся, что таймер запускается при создании фрагмента
-        (activity as? TestActivity)?.startQuestionTimer()
     }
 
     override fun onResume() {
         super.onResume()
-        // Перезапускаем таймер при возвращении на фрагмент
-        (activity as? TestActivity)?.startQuestionTimer()
+        // Перезапускаем таймер только для обычных вопросов (Task 1)
+        (activity as? TestActivity)?.startQuestionTimerIfNeeded()
     }
 
     private fun setupViews() {
         binding.questionText.text = question?.text ?: "Вопрос не загружен"
         binding.questionNumber.text = "Вопрос ${currentPosition + 1}/$totalQuestions"
 
-        // Скрываем кнопку завершения - она будет только в ManualQuestionFragment
+        // Скрываем кнопку завершения (она только в ManualQuestionFragment)
         binding.finishButton.visibility = View.GONE
     }
 

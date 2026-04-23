@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.prob1.data.Test
 import com.example.prob1.databinding.ItemTestBinding
 
-class TestsAdapter(private val onTestClick: (String, Int) -> Unit) :
+class TestsAdapter(private val onTestClick: (String, Int, Boolean) -> Unit) :
     RecyclerView.Adapter<TestsAdapter.TestViewHolder>() {
 
     private var tests = emptyList<Test>()
@@ -38,7 +38,7 @@ class TestsAdapter(private val onTestClick: (String, Int) -> Unit) :
         }
 
         holder.itemView.setOnClickListener {
-            onTestClick(test.id, test.semester)
+            onTestClick(test.id, test.semester, test.hasParts)
         }
     }
 

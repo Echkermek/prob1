@@ -68,11 +68,14 @@
         app:strokeWidth="2dp">
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/textInputLayout5"
+            android:id="@+id/passwordLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:hintTextColor="#4D9DC3"
-            app:layout_constraintBottom_toTopOf="@+id/sign_button">
+            app:layout_constraintBottom_toTopOf="@+id/sign_button"
+            app:endIconMode="custom"
+            app:endIconDrawable="@android:drawable/ic_menu_view"
+            app:endIconContentDescription="Show password">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/password_field"
@@ -91,7 +94,6 @@
         android:layout_height="wrap_content"
         android:elevation="6dp"
         android:gravity="center"
-        android:onClick="debugClick"
         android:stateListAnimator="@null"
         android:text="sign up"
         android:textColor="#FFFFFF"
@@ -120,7 +122,6 @@
             style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:onClick="onRegisterClick"
             android:text="Register now"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1"
             android:textColor="#4D9DC3"

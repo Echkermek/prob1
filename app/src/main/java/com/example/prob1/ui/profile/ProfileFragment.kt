@@ -1,10 +1,9 @@
+// com/example/prob1/ui/profile/ProfileFragment.kt
 package com.example.prob1.ui.profile
 
 import android.animation.ObjectAnimator
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,7 +11,7 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.utils.widget.ImageFilterView
-import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.example.prob1.BankActivity
 import com.example.prob1.CalendarStudent
 import com.example.prob1.LevelsActivity
@@ -20,285 +19,130 @@ import com.example.prob1.R
 import com.example.prob1.RatingActivity
 import com.example.prob1.RulesActivity
 import com.example.prob1.StudentAuthActivity
+import com.example.prob1.base.BaseFragment
+import com.example.prob1.data.database.entities.UserDataEntity
+import com.example.prob1.data.database.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.launch
 
-class ProfileFragment : Fragment() {
+class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragmentBinding>() {
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
-    private var currentGroupId: String? = null
-    private var currentGroupName: String? = null
-    private var coinsListener: ListenerRegistration? = null
-    private var gradesListener: ListenerRegistration? = null
-    private lateinit var scoreButton: Button
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid
+    private lateinit var userRepository: UserRepository
 
-    // Переменные для баллов и оценки
-    private var totalBestScore: Double = 0.0
-    private var currentGrade: Int = 0
+    override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?): com.example.prob1.databinding.ProfileFragmentBinding {
+        return com.example.prob1.databinding.ProfileFragmentBinding.inflate(inflater, container, false)
+    }
 
-    @SuppressLint("MissingInflatedId")
-    override fun onCreateView(
+    override fun onViewCreatedSafe(savedInstanceState: Bundle?) {
+        userRepository = UserRepository(requireContext())
 
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        val root = inflater.inflate(R.layout.profile_fragment, container, false)
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
-
-        val nameSurname: TextView = root.findViewById(R.id.nameSurname)
-        val groupName: TextView = root.findViewById(R.id.groupName)
-        val coinsProfile: TextView = root.findViewById(R.id.buttonCoins)
-        val btbank: Button = root.findViewById(R.id.btBank)
-        scoreButton = root.findViewById(R.id.score)
-        val exitButton: Button = root.findViewById(R.id.exit)
-        val ratingButton: Button = root.findViewById(R.id.rating)
-        val calendarButton: Button = root.findViewById(R.id.kalendar)
-        val rulesButton: Button = root.findViewById(R.id.rules)
-        val avatar = root.findViewById<ImageFilterView>(R.id.avatar)
-
-        // Инициализация кнопки оценки
-        scoreButton.text = "Нет данных"
-
-        auth.currentUser?.let { user ->
-            // Загрузка имени пользователя
-            db.collection("users").document(user.uid).get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        nameSurname.text = "${document.getString("name")} ${document.getString("surname")}"
-                    }
-                }
-
-            // Загрузка группы
-            db.collection("usersgroup")
-                .whereEqualTo("userId", user.uid)
-                .limit(1)
-                .get()
-                .addOnSuccessListener { documents ->
-                    if (!documents.isEmpty) {
-                        val document = documents.documents[0]
-                        currentGroupId = document.getString("groupId")
-                        currentGroupName = document.getString("groupName")
-                        groupName.text = "Группа: ${currentGroupName}"
-                    }
-                }
-
-            // Слушатель для монет
-            coinsListener = db.collection("user_coins").document(user.uid)
-                .addSnapshotListener { document, error ->
-                    if (error != null) {
-                        Log.e("ProfileFragment", "Listen failed.", error)
-                        return@addSnapshotListener
-                    }
-
-                    if (document != null && document.exists()) {
-                        val coins = document.getLong("coins")?.toInt() ?: 0
-                        updateCoinsWithAnimation(coinsProfile, coins.toString())
-                        updateAvatar(avatar, coins)
-                    }
-                }
-
-            // Слушатель для оценок (лучшие результаты)
-            gradesListener = db.collection("test_grades")
-                .whereEqualTo("userId", user.uid)
-                .addSnapshotListener { querySnapshot, error ->
-                    if (error != null) {
-                        Log.e("ProfileFragment", "Listen for grades failed.", error)
-                        scoreButton.text = "Нет данных"
-                        return@addSnapshotListener
-                    }
-
-                    // Считаем сумму bestScore
-                    totalBestScore = 0.0
-                    querySnapshot?.documents?.forEach { doc ->
-                        val bestScore = doc.getDouble("bestScore") ?: 0.0
-                        totalBestScore += bestScore
-                    }
-
-                    // Загружаем критерии из коллекции `rating`
-                    loadRatingCriteriaAndUpdate(user.uid)
-                }
+        if (userId == null) {
+            showToast("Не авторизован")
+            return
         }
 
-        // Кнопки
-        rulesButton.setOnClickListener {
-            startActivity(Intent(activity, RulesActivity::class.java))
+        setupClickListeners()
+        setupRefreshButton()
+
+        // Подписываемся на данные из ViewModel
+        observeViewModel()
+
+        // Если данные не загружены - загружаем
+        if (mainViewModel.userData.value == null) {
+            mainViewModel.loadUserData(userId!!)
+        }
+    }
+
+    private fun setupClickListeners() {
+        binding.btBank.setOnClickListener {
+            startActivity(Intent(requireContext(), BankActivity::class.java))
         }
 
-        calendarButton.setOnClickListener {
-            startActivity(Intent(activity, CalendarStudent::class.java))
-        }
-
-        scoreButton.setOnClickListener {
-            val data = scoreButton.tag as? Map<*, *> ?: return@setOnClickListener
-            val points = (data["points"] as? Double) ?: 0.0
-            val grade = (data["grade"] as? Int) ?: 0
-            showGradeDialog(points, grade)
-        }
-
-        avatar.setOnClickListener {
-            auth.currentUser?.let { user ->
-                db.collection("user_coins").document(user.uid).get()
-                    .addOnSuccessListener { document ->
-                        val coins = document.getLong("coins")?.toInt() ?: 0
-                        val intent = Intent(activity, LevelsActivity::class.java).apply {
-                            putExtra("coins", coins)
-                        }
-                        startActivity(intent)
-                    }
-            }
-        }
-
-        ratingButton.setOnClickListener {
-            auth.currentUser?.let { user ->
-                db.collection("usersgroup")
-                    .whereEqualTo("userId", user.uid)
-                    .limit(1)
-                    .get()
-                    .addOnSuccessListener { documents ->
-                        if (!documents.isEmpty) {
-                            startActivity(Intent(activity, RatingActivity::class.java))
-                        } else {
-                            Log.d("ProfileFragment", "No group found for user")
-                        }
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e("ProfileFragment", "Error loading user group", e)
-                    }
-            }
-        }
-
-        exitButton.setOnClickListener {
+        binding.exit.setOnClickListener {
             showExitConfirmationDialog()
         }
 
-        btbank.setOnClickListener {
-            startActivity(Intent(activity, BankActivity::class.java))
+        binding.rating.setOnClickListener {
+            startActivity(Intent(requireContext(), RatingActivity::class.java))
         }
 
-        return root
+        binding.kalendar.setOnClickListener {
+            startActivity(Intent(requireContext(), CalendarStudent::class.java))
+        }
+
+        binding.rules.setOnClickListener {
+            startActivity(Intent(requireContext(), RulesActivity::class.java))
+        }
+
+        binding.avatar.setOnClickListener {
+            val coins = mainViewModel.userData.value?.coins ?: 0
+            val intent = Intent(requireContext(), LevelsActivity::class.java).apply {
+                putExtra("coins", coins)
+            }
+            startActivity(intent)
+        }
+
+        binding.score.setOnClickListener {
+            val userData = mainViewModel.userData.value
+            if (userData != null) {
+                showGradeDialog(userData.totalScore, userData.grade)
+            }
+        }
     }
 
-    // Загрузка критериев из `rating` и обновление кнопки
-    private fun loadRatingCriteriaAndUpdate(userId: String) {
-        db.collection("usersgroup")
-            .whereEqualTo("userId", userId)
-            .limit(1)
-            .get()
-            .addOnSuccessListener { groupDocs ->
-                if (groupDocs.isEmpty) {
-                    updateScoreButton(0.0, 0)
-                    return@addOnSuccessListener
+    private fun setupRefreshButton() {
+        binding.refreshButton.setOnClickListener {
+            mainViewModel.refreshAllData(userId!!)
+        }
+    }
+
+    private fun observeViewModel() {
+        // Наблюдаем за данными пользователя
+        lifecycleScope.launch {
+            mainViewModel.userData.collect { userData: UserDataEntity? ->
+                if (isUiSafe && userData != null) {
+                    updateUI(userData)
                 }
-
-                val groupId = groupDocs.documents[0].getString("groupId") ?: return@addOnSuccessListener
-
-                db.collection("courses")
-                    .whereEqualTo("groupId", groupId)
-                    .limit(1)
-                    .get()
-                    .addOnSuccessListener { courseDocs ->
-                        val currentSemester = if (!courseDocs.isEmpty) {
-                            courseDocs.documents[0].getLong("semester")?.toInt() ?: 1
-                        } else 1
-
-                        // Ищем документ в `rating` с нужным semestr
-                        db.collection("rating")
-                            .whereEqualTo("semestr", currentSemester)
-                            .limit(1)
-                            .get()
-                            .addOnSuccessListener { ratingDocs ->
-                                if (ratingDocs.isEmpty) {
-                                    updateScoreButton(totalBestScore, 0)
-                                    return@addOnSuccessListener
-                                }
-
-                                val criteria = ratingDocs.documents[0]
-                                val min3 = criteria.getLong("min3")?.toInt() ?: 100
-                                val min4 = criteria.getLong("min4")?.toInt() ?: 150
-                                val min5 = criteria.getLong("min5")?.toInt() ?: 200
-
-                                currentGrade = when {
-                                    totalBestScore >= min5 -> 5
-                                    totalBestScore >= min4 -> 4
-                                    totalBestScore >= min3 -> 3
-                                    else -> 2
-                                }
-
-                                updateScoreButton(totalBestScore, currentGrade)
-                            }
-                            .addOnFailureListener {
-                                updateScoreButton(totalBestScore, 0)
-                            }
-                    }
             }
-            .addOnFailureListener {
-                updateScoreButton(totalBestScore, 0)
+        }
+
+        // Наблюдаем за состоянием загрузки
+        lifecycleScope.launch {
+            mainViewModel.isLoading.collect { isLoading: Boolean ->
+                if (isUiSafe) {
+                    binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+                    binding.refreshButton.isEnabled = !isLoading
+                }
             }
+        }
     }
 
-    // Обновление кнопки с баллами и оценкой
-    private fun updateScoreButton(totalPoints: Double, grade: Int) {
-        val pointsText = if (totalPoints > 0) "${totalPoints.toInt()} баллов" else "Нет баллов"
-        val gradeText = when (grade) {
-            5 -> "5 (Отлично)"
-            4 -> "4 (Хорошо)"
-            3 -> "3 (Удовл.)"
-            2 -> "2 (Неуд.)"
-            else -> "Нет данных"
-        }
+    private fun updateUI(userData: UserDataEntity) {
+        // Имя и фамилия
+        val fullName = "${userData.name ?: ""} ${userData.surname ?: ""}".trim()
+        binding.nameSurname.text = fullName.ifEmpty { "Студент" }
 
+        // Группа
+        binding.groupName.text = "Группа: ${userData.groupName ?: "Не указана"}"
 
-        scoreButton.text = "$pointsText"
-        scoreButton.tag = mapOf("points" to totalPoints, "grade" to grade)
+        // Монеты с анимацией
+        updateCoinsWithAnimation(binding.buttonCoins, userData.coins)
+
+        // Аватар
+        updateAvatar(binding.avatar, userData.coins)
+
+        // Кнопка с баллами
+        updateScoreButton(binding.score, userData.totalScore, userData.grade)
     }
 
-    // Диалог с подробной информацией
-    private fun showGradeDialog(totalPoints: Double, grade: Int) {
-        val gradeDesc = when (grade) {
-            5 -> "Отлично"
-            4 -> "Хорошо"
-            3 -> "Удовлетворительно"
-            2 -> "Неудовлетворительно"
-            else -> "Нет данных"
-        }
-
-        val message = if (totalPoints > 0) {
-            """
-                Ваша оценка: $gradeDesc ($grade)
-                
-                Всего баллов: ${totalPoints.toInt()}                
-                
-                • 2: менее 100 баллов
-                • 3: 100–149 баллов
-                • 4: 150–199 баллов
-                • 5: 200+ баллов
-            """.trimIndent()
-        } else {
-            """
-                У вас пока нет баллов.
-            """.trimIndent()
-        }
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Успеваемость")
-            .setMessage(message)
-            .setPositiveButton("OK") { d, _ -> d.dismiss() }
-            .show()
-    }
-
-    // Анимация монет
-    private fun updateCoinsWithAnimation(view: TextView, newValue: String) {
+    private fun updateCoinsWithAnimation(view: TextView, coins: Int) {
         val anim = ObjectAnimator.ofFloat(view, "scaleX", 1f, 1.2f, 1f)
         anim.duration = 300
         anim.start()
-        view.text = newValue
+        view.text = coins.toString()
     }
 
-    // Обновление аватара
     private fun updateAvatar(avatar: ImageFilterView, coinsValue: Int) {
         when {
             coinsValue < 130 -> avatar.setImageResource(R.mipmap.level1)
@@ -312,25 +156,56 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    // Диалог выхода
+    private fun updateScoreButton(button: Button, totalPoints: Double, grade: Int) {
+        val pointsText = if (totalPoints > 0) "${totalPoints.toInt()} баллов" else "Нет баллов"
+        button.text = pointsText
+        button.tag = mapOf("points" to totalPoints, "grade" to grade)
+    }
+
+    private fun showGradeDialog(totalPoints: Double, grade: Int) {
+        val gradeDesc = when (grade) {
+            5 -> "Отлично"
+            4 -> "Хорошо"
+            3 -> "Удовлетворительно"
+            2 -> "Неудовлетворительно"
+            else -> "Нет данных"
+        }
+
+        val message = """
+            Ваша оценка: $gradeDesc ($grade)
+            
+            Всего баллов: ${totalPoints.toInt()}
+            
+            Критерии оценки:
+            • 5 (Отлично): 106 – 125 баллов
+            • 4 (Хорошо): 90 – 105 баллов
+            • 3 (Удовл.): 76 – 89 баллов
+            • 2 (Неуд.): 75 и меньше баллов
+        """.trimIndent()
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Успеваемость")
+            .setMessage(message)
+            .setPositiveButton("OK") { d, _ -> d.dismiss() }
+            .show()
+    }
+
     private fun showExitConfirmationDialog() {
         AlertDialog.Builder(requireContext())
             .setTitle("Выход")
-            .setMessage("Данные для входа будут удалены. Выйти из профиля?")
+            .setMessage("Вы уверены, что хотите выйти из профиля?")
             .setNegativeButton("Отмена") { dialog, _ -> dialog.dismiss() }
             .setPositiveButton("Выйти") { _, _ -> logoutUser() }
             .show()
     }
 
     private fun logoutUser() {
-        auth.signOut()
-        startActivity(Intent(activity, StudentAuthActivity::class.java))
-        activity?.finish()
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        coinsListener?.remove()
-        gradesListener?.remove()
+        FirebaseAuth.getInstance().signOut()
+        mainViewModel.clearData()
+        launchSafe {
+            userRepository.clearUserDataCache(userId!!)
+        }
+        startActivity(Intent(requireContext(), StudentAuthActivity::class.java))
+        requireActivity().finish()
     }
 }

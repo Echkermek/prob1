@@ -3,6 +3,8 @@ package com.example.prob1
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.text.method.HideReturnsTransformationMethod
+import android.text.method.PasswordTransformationMethod
 import android.widget.Toast
 import com.example.prob1.databinding.ActivityStudentAuthBinding
 import com.google.firebase.auth.FirebaseAuth
@@ -12,6 +14,7 @@ class StudentAuthActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
     private lateinit var binding: ActivityStudentAuthBinding
+    private var isPasswordVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +32,23 @@ class StudentAuthActivity : AppCompatActivity() {
 
         binding.registerButton.setOnClickListener {
             startActivity(Intent(this, StudentRegisterActivity::class.java))
+        }
+
+        // Setup password visibility toggle
+        setupPasswordVisibilityToggle()
+    }
+
+    private fun setupPasswordVisibilityToggle() {
+        binding.passwordLayout.setEndIconOnClickListener {
+            isPasswordVisible = !isPasswordVisible
+            if (isPasswordVisible) {
+                binding.passwordField.transformationMethod = HideReturnsTransformationMethod.getInstance()
+                binding.passwordLayout.setEndIconDrawable(android.R.drawable.ic_menu_close_clear_cancel)
+            } else {
+                binding.passwordField.transformationMethod = PasswordTransformationMethod.getInstance()
+                binding.passwordLayout.setEndIconDrawable(android.R.drawable.ic_menu_view)
+            }
+            binding.passwordField.setSelection(binding.passwordField.text?.length ?: 0)
         }
     }
 

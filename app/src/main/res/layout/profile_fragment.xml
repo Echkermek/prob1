@@ -8,9 +8,9 @@
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:background="@drawable/gradient_background"
-    tools:context=".ui.notifications.NotificationsFragment">
+    tools:context=".ui.profile.ProfileFragment">
 
-
+        <!-- Верхняя панель с банком, монетами и кнопкой обновления -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -33,28 +33,46 @@
                     app:backgroundTint="@color/yellow" />
 
                 <Space
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/buttonCoins"
-                    style="@style/Widget.AppCompat.Button.ButtonBar.AlertDialog"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="right"
-                    android:clickable="false"
+                    android:layout_gravity="center_vertical"
                     android:drawableLeft="@drawable/ic_baseline_monetization_on_24"
                     android:elevation="6dp"
-                    android:stateListAnimator="@null"
-                    android:text="0"
                     android:fontFamily="serif"
+                    android:text="0"
                     android:textColor="#72C3D1"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:translationZ="4dp" />
+                    android:textStyle="bold" />
+
+                <ImageButton
+                    android:id="@+id/refreshButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@android:drawable/ic_menu_rotate"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Обновить"
+                    android:scaleType="centerInside"
+                    android:padding="8dp"
+                    app:tint="#FFFFFF" />
         </LinearLayout>
 
+        <!-- Индикатор загрузки -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_margin="16dp"
+            android:visibility="gone" />
+
+        <!-- Аватар -->
         <androidx.cardview.widget.CardView
             android:id="@+id/view2"
             android:layout_width="wrap_content"
@@ -65,31 +83,32 @@
 
                 <androidx.constraintlayout.utils.widget.ImageFilterView
                     android:id="@+id/avatar"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
                     android:src="@mipmap/white" />
         </androidx.cardview.widget.CardView>
 
+        <!-- Имя и фамилия -->
         <TextView
             android:id="@+id/nameSurname"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:fontFamily="serif"
-            android:textAppearance="@style/TextAppearance.AppCompat.Display4"
             android:textSize="18sp"
             android:textColor="@color/white"
             android:textStyle="bold" />
 
+        <!-- Группа -->
         <TextView
             android:id="@+id/groupName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:textColor="@color/white"
-            android:fontFamily="serif"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
+            android:fontFamily="serif" />
 
+        <!-- Баллы -->
         <Button
             android:id="@+id/score"
             android:layout_width="wrap_content"
@@ -98,10 +117,12 @@
             android:gravity="center"
             android:stateListAnimator="@null"
             android:fontFamily="serif"
-            android:text="0"
+            android:text="Нет баллов"
             android:translationZ="4dp"
+            android:textColor="@color/white"
             app:backgroundTint="#72C3D1" />
 
+        <!-- Правила -->
         <Button
             android:id="@+id/rules"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -113,6 +134,7 @@
             android:backgroundTint="#72C3D1"
             android:textColor="@color/black" />
 
+        <!-- Рейтинг -->
         <Button
             android:id="@+id/rating"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -124,6 +146,7 @@
             android:backgroundTint="#72C3D1"
             android:textColor="@color/black" />
 
+        <!-- Календарь -->
         <Button
             android:id="@+id/kalendar"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -135,7 +158,7 @@
             android:backgroundTint="#72C3D1"
             android:textColor="@color/black" />
 
-
+        <!-- Выход -->
         <Button
             android:id="@+id/exit"
             style="@style/Widget.MaterialComponents.Button.UnelevatedButton"

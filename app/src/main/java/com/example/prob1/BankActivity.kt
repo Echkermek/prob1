@@ -1,5 +1,6 @@
 package com.example.prob1
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
@@ -41,10 +42,23 @@ class BankActivity : AppCompatActivity() {
             db.collection("user_coins").document(user.uid)
                 .addSnapshotListener { document, _ ->
                     if (document != null && document.exists()) {
+                        val oldCoins = currentCoins
+                        val oldCredit = currentCredit
+
                         currentCoins = document.getLong("coins")?.toInt() ?: 0
                         currentCredit = document.getLong("credit")?.toInt() ?: 0
 
                         updateUI()
+
+                        if (oldCredit > 0 && currentCredit == 0 && oldCoins > currentCoins) {
+                            val paidAmount = oldCredit
+                            Toast.makeText(
+                                this,
+                                "Кредит $paidAmount монет списан с баланса",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+
                         checkAutoPayment()
                     }
                 }
@@ -52,7 +66,7 @@ class BankActivity : AppCompatActivity() {
     }
 
     private fun updateUI() {
-        tvBankStatus.text = "Баланс  $currentCoins coins"
+        tvBankStatus.text = "Баланс: $currentCoins coins"
         tvCreditStatus.text = "Кредит: $currentCredit coins"
 
         if (currentCredit > 0) {
@@ -61,12 +75,28 @@ class BankActivity : AppCompatActivity() {
         } else {
             btnTakeLoan.isEnabled = true
             btnTakeLoan.text = "Взять кредит ($LOAN_AMOUNT coins)"
-            btnTakeLoan.setOnClickListener { takeLoan() }
+            btnTakeLoan.setOnClickListener { showLoanConfirmationDialog() }
         }
     }
 
+    private fun showLoanConfirmationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Кредит")
+            .setMessage("""
+                Взять кредит в размере $LOAN_AMOUNT монет.
+                
+                Кредит будет автоматически списан с вашего баланса при достижении $CREDIT_THRESHOLD монет.
+                                
+            """.trimIndent())
+            .setPositiveButton("Взять кредит") { _, _ ->
+                takeLoan()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
     private fun checkAutoPayment() {
-        if (currentCredit > 0 && currentCoins > CREDIT_THRESHOLD) {
+        if (currentCredit > 0 && currentCoins >= CREDIT_THRESHOLD) {
             payCreditAutomatically()
         }
     }
@@ -82,7 +112,7 @@ class BankActivity : AppCompatActivity() {
                     "credit" to newCredit
                 ))
                 .addOnSuccessListener {
-                    Toast.makeText(this, " $LOAN_AMOUNT Получены", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Кредит $LOAN_AMOUNT монет получен", Toast.LENGTH_SHORT).show()
                 }
                 .addOnFailureListener {
                     Toast.makeText(this, "Не удалось взять кредит", Toast.LENGTH_SHORT).show()
@@ -92,7 +122,8 @@ class BankActivity : AppCompatActivity() {
 
     private fun payCreditAutomatically() {
         auth.currentUser?.let { user ->
-            val newCoins = currentCoins - currentCredit
+            val amountToPay = currentCredit
+            val newCoins = currentCoins - amountToPay
 
             db.collection("user_coins").document(user.uid)
                 .update(mapOf(
@@ -100,11 +131,15 @@ class BankActivity : AppCompatActivity() {
                     "credit" to 0
                 ))
                 .addOnSuccessListener {
-                    Toast.makeText(this, "Кредит $currentCredit ", Toast.LENGTH_SHORT).show()
+                    // Тосты показываются в loadUserData через addSnapshotListener
                 }
                 .addOnFailureListener {
-                    Toast.makeText(this, "не удалось получить", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Не удалось автоматически списать кредит", Toast.LENGTH_SHORT).show()
                 }
         }
+    }
+
+    fun exit(view: android.view.View) {
+        finish()
     }
 }

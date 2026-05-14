@@ -43,6 +43,10 @@ class CalendarActivity : AppCompatActivity() {
         selectedDate = dateFormat.format(Date())
         loadGroups()
 
+        binding.backButton.setOnClickListener {
+            finish()
+        }
+
         binding.calendarView.setOnDateChangedListener { _, date, _ ->
             selectedDate = formatFirestoreDate(date)
             if (selectedGroupId.isNotEmpty()) {

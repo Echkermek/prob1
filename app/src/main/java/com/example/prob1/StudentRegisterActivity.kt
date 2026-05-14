@@ -248,13 +248,22 @@ class StudentRegisterActivity : AppCompatActivity() {
         return isValid
     }
 
-    private fun saveUserData(name: String, surname: String, email: String, groupName: String, groupId: String) {
+    private fun saveUserData(
+        name: String,
+        surname: String,
+        email: String,
+        groupName: String,
+        groupId: String
+    ) {
         auth.currentUser?.let { user ->
+
             val studentData = hashMapOf(
                 "name" to name,
                 "surname" to surname,
                 "email" to email,
                 "group" to groupName,
+                "coins" to 100,
+                "credit" to 0,
                 "createdAt" to FieldValue.serverTimestamp()
             )
 
@@ -262,6 +271,7 @@ class StudentRegisterActivity : AppCompatActivity() {
                 .document(user.uid)
                 .set(studentData)
                 .addOnSuccessListener {
+
                     val userGroupData = hashMapOf(
                         "userId" to user.uid,
                         "groupId" to groupId,
@@ -273,30 +283,14 @@ class StudentRegisterActivity : AppCompatActivity() {
                     db.collection("usersgroup")
                         .add(userGroupData)
                         .addOnSuccessListener {
-                            val coinsData = hashMapOf(
-                                "userId" to user.uid,
-                                "coins" to 100,
-                                "credit" to 0
-                            )
+                            Toast.makeText(this, "Регистрация успешна!", Toast.LENGTH_SHORT).show()
 
-                            db.collection("user_coins")
-                                .document(user.uid)
-                                .set(coinsData)
-                                .addOnSuccessListener {
-                                    Toast.makeText(this, "Регистрация успешна!", Toast.LENGTH_SHORT).show()
-                                    val intent = Intent(this, MainActivity::class.java).apply {
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                    }
-                                    startActivity(intent)
-                                    finish()
-                                }
-                                .addOnFailureListener { e ->
-                                    Toast.makeText(
-                                        this,
-                                        "Ошибка создания данных о монетах: ${e.message}",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
+                            val intent = Intent(this, MainActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            }
+
+                            startActivity(intent)
+                            finish()
                         }
                         .addOnFailureListener { e ->
                             Toast.makeText(

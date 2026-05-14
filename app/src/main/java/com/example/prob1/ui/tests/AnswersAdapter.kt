@@ -9,7 +9,7 @@ import com.example.prob1.databinding.ItemAnswerBinding
 
 class AnswersAdapter(
     private val answers: List<Answer>,
-    private val onAnswerSelected: (Boolean) -> Unit
+    private val onAnswerSelected: (Boolean, Boolean) -> Unit  // Изменен callback: передаем isCorrect и isUserSelected
 ) : RecyclerView.Adapter<AnswersAdapter.AnswerViewHolder>() {
 
     private var selectedPosition = -1
@@ -35,14 +35,14 @@ class AnswersAdapter(
                 if (!isAnswerSelected && !isSelectionDisabled) {
                     selectedPosition = adapterPosition
                     isAnswerSelected = true
-                    onAnswerSelected(answer.isCorrect)
+                    // Передаем isCorrect И то, что это выбор пользователя
+                    onAnswerSelected(answer.isCorrect, true)
                     notifyDataSetChanged()
                 }
             }
         }
-
-
     }
+
     fun disableSelection() {
         isSelectionDisabled = true
     }

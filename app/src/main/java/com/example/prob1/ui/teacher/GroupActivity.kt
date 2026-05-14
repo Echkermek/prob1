@@ -2,9 +2,9 @@ package com.example.prob1.ui.teacher
 
 import android.app.AlertDialog
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.EditText
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.prob1.R
@@ -12,6 +12,7 @@ import com.example.prob1.databinding.ActivityGroupBinding
 import com.google.firebase.firestore.FirebaseFirestore
 
 class GroupActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityGroupBinding
     private val db = FirebaseFirestore.getInstance()
     private val groupsList = mutableListOf<String>()
@@ -21,6 +22,10 @@ class GroupActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityGroupBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        binding.backButton.setOnClickListener {
+            finish()
+        }
 
         adapter = GroupAdapter(groupsList) { groupName ->
             val intent = Intent(this, GroupRatingActivity::class.java)
@@ -36,7 +41,6 @@ class GroupActivity : AppCompatActivity() {
         }
     }
 
-
     private fun setupGroupsList() {
         binding.groupsRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.groupsRecyclerView.adapter = adapter
@@ -48,7 +52,9 @@ class GroupActivity : AppCompatActivity() {
             .addOnSuccessListener { documents ->
                 groupsList.clear()
                 for (document in documents) {
-                    document.getString("name")?.let { groupsList.add(it) }
+                    document.getString("name")?.let {
+                        groupsList.add(it)
+                    }
                 }
                 adapter.notifyDataSetChanged()
             }
@@ -57,6 +63,7 @@ class GroupActivity : AppCompatActivity() {
     private fun showAddGroupDialog() {
         val input = EditText(this).apply {
             hint = "Введите название группы"
+            setSingleLine(true)
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -72,12 +79,11 @@ class GroupActivity : AppCompatActivity() {
             .create()
 
         dialog.setOnShowListener {
-            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-            positiveButton.setTextColor(ContextCompat.getColor(this, R.color.light_blue))
-        }
-        dialog.setOnShowListener {
-            val negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
-            negativeButton.setTextColor(ContextCompat.getColor(this, R.color.light_blue))
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setTextColor(ContextCompat.getColor(this, R.color.light_blue))
+
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
+                .setTextColor(ContextCompat.getColor(this, R.color.light_blue))
         }
 
         dialog.show()
@@ -90,7 +96,7 @@ class GroupActivity : AppCompatActivity() {
 
         db.collection("groups")
             .add(groupData)
-            .addOnSuccessListener { documentReference ->
+            .addOnSuccessListener {
                 groupsList.add(groupName)
                 adapter.notifyItemInserted(groupsList.size - 1)
             }

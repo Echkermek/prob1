@@ -1,26 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/gradient_background"
     android:orientation="vertical">
 
-    <!-- Заголовок с кнопкой обновления -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingStart="16dp"
-        android:paddingEnd="8dp">
+        android:paddingTop="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Назад"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@android:drawable/ic_menu_revert"
+            app:tint="#FFFFFF" />
 
         <TextView
             android:id="@+id/textView5"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
             android:text="Уведомления"
             android:textColor="@color/white"
             android:textSize="24sp"
@@ -30,17 +47,14 @@
             android:id="@+id/refreshButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_rotate"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Обновить"
-            android:scaleType="centerInside"
             android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@android:drawable/ic_menu_rotate"
             app:tint="#FFFFFF" />
-
-
     </LinearLayout>
 
-    <!-- Кнопки фильтрации -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="48dp"
@@ -98,25 +112,29 @@
             android:id="@+id/emptyState"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
             android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp"
             android:visibility="visible">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:textColor="@color/white"
                 android:text="Нет уведомлений"
+                android:textColor="@color/white"
                 android:textSize="18sp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="Когда появятся новые события или сообщения,\nони будут отображаться здесь"
                 android:textColor="@color/white"
-                android:text="Здесь будут появляться новые уведомления" />
+                android:textSize="14sp" />
         </LinearLayout>
+
     </FrameLayout>
 
 </LinearLayout>

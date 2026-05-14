@@ -23,7 +23,6 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
     private lateinit var lectionRepository: LectionRepository
 
     private var testId: String? = null
-    private var hasParts: Boolean = true
 
     private lateinit var partsAdapter: PartsAdapter
 
@@ -34,7 +33,6 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         testId = arguments?.getString("testId")
-        hasParts = arguments?.getBoolean("hasParts") ?: true
     }
 
     override fun onViewCreatedSafe(savedInstanceState: Bundle?) {
@@ -50,11 +48,7 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
             return
         }
 
-        if (!hasParts) {
-            startTestDirectly()
-        } else {
-            loadParts()
-        }
+        loadParts()
     }
 
     private fun setupRecyclerView() {
@@ -115,30 +109,7 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
         }
     }
 
-    private fun startTestDirectly() {
-        launchSafe {
-            try {
-                showLoading(true)
 
-                testRepository.preloadFullTest(testId!!)
-
-                showLoading(false)
-
-                val intent = Intent(requireActivity(), TestActivity::class.java).apply {
-                    putExtra("testId", testId)
-                    putExtra("partId", testId)
-                    putExtra("isManual", false)
-                    putExtra("hasParts", false)
-                }
-                startActivity(intent)
-
-            } catch (e: Exception) {
-                showLoading(false)
-                Log.e("TestPartsFragment", "Error loading test", e)
-                showToast("Ошибка загрузки теста: ${e.message}")
-            }
-        }
-    }
 
     private fun loadParts(forceRefresh: Boolean = false) {
         launchSafe {
@@ -176,14 +147,14 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
 
     private fun startTest(partId: String, isManual: Boolean) {
         val intent = Intent(requireActivity(), TestActivity::class.java).apply {
-            putExtra("partId", partId)
             putExtra("testId", testId)
+            putExtra("partId", partId)
             putExtra("isManual", isManual)
-            putExtra("hasParts", true)
+            putExtra("isDebtTest", arguments?.getBoolean("isDebtTest") ?: false) // Передаем флаг дальше
         }
         startActivity(intent)
     }
-
+    
     private fun showLoading(show: Boolean) {
         binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
         binding.refreshButton.isEnabled = !show

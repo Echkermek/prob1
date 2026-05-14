@@ -35,6 +35,10 @@ class ManualAnswersActivity : AppCompatActivity(), CoroutineScope {
         binding = ActivityManualAnswersBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.backButton.setOnClickListener {
+            finish()
+        }
+
         setupSpinner()
         setupRecyclerView()
         loadGroups()

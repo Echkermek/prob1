@@ -30,6 +30,10 @@ class CalendarStudent : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityCalendarStudentBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.backButton.setOnClickListener {
+            finish()
+        }
+
 
         loadUserDataAndEvents()
 

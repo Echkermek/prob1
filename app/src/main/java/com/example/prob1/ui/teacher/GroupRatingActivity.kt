@@ -12,6 +12,7 @@ import com.example.prob1.RatingAdapter
 import com.example.prob1.models.UserRating
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import android.widget.ImageView
 import android.app.AlertDialog
 
 class GroupRatingActivity : AppCompatActivity() {
@@ -22,6 +23,7 @@ class GroupRatingActivity : AppCompatActivity() {
     private lateinit var groupNameTextView: TextView
     private var currentGroupName: String = ""
     private var currentGroupId: String = ""
+    private lateinit var backButton: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +35,12 @@ class GroupRatingActivity : AppCompatActivity() {
         deleteGroupButton = findViewById(R.id.deleteGroupButton)
         groupNameTextView = findViewById(R.id.groupNameTextView)
         recyclerView.layoutManager = LinearLayoutManager(this)
+
+        backButton = findViewById(R.id.backButton)
+
+        backButton.setOnClickListener {
+            finish()
+        }
 
         currentGroupName = intent.getStringExtra("GROUP_NAME") ?: ""
         groupNameTextView.text = getString(R.string.group_name_format, currentGroupName)
@@ -100,7 +108,7 @@ class GroupRatingActivity : AppCompatActivity() {
 
         for (student in students) {
             // Загружаем монеты
-            db.collection("user_coins")
+            db.collection("users")
                 .whereEqualTo("userId", student.userId)
                 .limit(1)
                 .get()
@@ -208,7 +216,7 @@ class GroupRatingActivity : AppCompatActivity() {
                 batch.delete(db.collection("users").document(userId))
 
                 // Delete user coins
-                db.collection("user_coins")
+                db.collection("users")
                     .whereEqualTo("userId", userId)
                     .get()
                     .addOnSuccessListener { coinsDocs ->
@@ -216,7 +224,6 @@ class GroupRatingActivity : AppCompatActivity() {
                             batch.delete(doc.reference)
                         }
 
-                        // Delete user group association
                         db.collection("usersgroup")
                             .whereEqualTo("userId", userId)
                             .get()
@@ -225,7 +232,7 @@ class GroupRatingActivity : AppCompatActivity() {
                                     batch.delete(doc.reference)
                                 }
 
-                                // Delete test grades
+
                                 db.collection("test_grades")
                                     .whereEqualTo("userId", userId)
                                     .get()

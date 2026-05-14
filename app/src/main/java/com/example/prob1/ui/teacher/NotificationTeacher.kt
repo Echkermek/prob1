@@ -47,6 +47,10 @@ class NotificationTeacher : AppCompatActivity() {
         binding = ActivityNotificationTeacherBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.backButton.setOnClickListener {
+            finish()
+        }
+
         setupUI()
         loadInitialData()
     }

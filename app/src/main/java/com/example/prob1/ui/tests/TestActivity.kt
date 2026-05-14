@@ -16,7 +16,9 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlin.math.roundToInt
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.math.max
 
 class TestActivity : AppCompatActivity() {
 
@@ -26,23 +28,35 @@ class TestActivity : AppCompatActivity() {
     private var partId: String? = null
     private var testId: String? = null
     private var questions: List<Question> = emptyList()
-
     private val questionRawData = mutableMapOf<String, Map<String, Any>>()
 
-    private var correctAnswers = 0          // Для обычных тестов (не USPTU)
-    private var rawScore = 0.0              // Для USPTU теста (максимум 35)
+    private var isDebtTest = false
+
+    private var correctAnswers = 0
+    private var rawScore = 0.0
     private var attemptNumber = 1
+
     var attemptDocId: String? = null
     var timer: CountDownTimer? = null
+
     private val userId = FirebaseAuth.getInstance().currentUser?.uid
     private var currentQuestionIndex = 0
     private var isTestCompleted = false
-    private var hasParts: Boolean = false
-    private var isUSPTUTest = false         // true, если есть хотя бы один вопрос с isManualInput
+    private var isUSPTUTest = false
 
-    // Ответы пользователя
-    private val manualAnswers = mutableMapOf<String, String>()     // для Task 2,3,4
-    private val selectedAnswers = mutableMapOf<String, Boolean>()  // для Task 1 (правильно/неправильно)
+    private var testType: String = ""
+    private var testMaxScore: Double = 20.0
+
+    private var testSemester: Int = 1
+    private var semesterMaxScore: Double = 0.0
+    private var semesterTotalQuestions: Int = 0
+
+    private val manualAnswers = mutableMapOf<String, String>()
+    private val selectedAnswers = mutableMapOf<String, Boolean>()
+
+    // Новые поля для 3-го типа
+    private var isInputOnlyTest = false
+    private var partType: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +65,7 @@ class TestActivity : AppCompatActivity() {
 
         partId = intent.getStringExtra("partId")
         testId = intent.getStringExtra("testId")
-        hasParts = intent.getBooleanExtra("hasParts", true)
+        isDebtTest = intent.getBooleanExtra("isDebtTest", false)
 
         if (partId == null || testId == null || userId == null) {
             Toast.makeText(this, "Ошибка: не переданы данные", Toast.LENGTH_SHORT).show()
@@ -64,11 +78,27 @@ class TestActivity : AppCompatActivity() {
 
     private fun checkTestAccess() {
         lifecycleScope.launch {
-            if (!hasParts) {
-                proceedToTest()
+            // Загружаем тип теста
+            loadTestType()
+            loadPartType()
+
+            // Для 3-го типа (input) проверяем, можно ли проходить
+            if (isInputOnlyTest) {
+                if (!canTakeInputTest()) {
+                    Toast.makeText(
+                        this@TestActivity,
+                        "Вы уже отправили ответ на проверку. Дождитесь оценки преподавателя.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    finish()
+                    return@launch
+                }
+                attemptNumber = getAttemptsCount() + 1
+                showRulesDialog()
                 return@launch
             }
 
+            // Для 1 и 2 типа проверяем лекции
             val lecId = getPartLectionId()
             val hasNoRealLecture = lecId.isNullOrEmpty() || lecId == "not" || lecId == "-"
 
@@ -92,13 +122,185 @@ class TestActivity : AppCompatActivity() {
 
     private suspend fun proceedToTest() {
         attemptNumber = getAttemptsCount() + 1
+        loadTestSettings()
         showRulesDialog()
     }
 
+    private suspend fun loadTestType() {
+        val testDoc = db.collection("tests")
+            .document(testId!!)
+            .get()
+            .await()
+
+        testType = testDoc.getString("type") ?: ""
+        isInputOnlyTest = testType == "input"
+    }
+
+    private suspend fun loadPartType() {
+        val partDoc = db.collection("tests")
+            .document(testId!!)
+            .collection("parts")
+            .document(partId!!)
+            .get()
+            .await()
+
+        partType = partDoc.getString("type")
+    }
+
+    fun getPartType(): String? = partType
+
+    private suspend fun canTakeInputTest(): Boolean {
+        val attempts = db.collection("test_attempts")
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("testId", testId)
+            .whereEqualTo("partId", partId)
+            .get()
+            .await()
+
+        // Если есть попытка, которая ещё не проверена
+        val hasPendingReview = attempts.documents.any { doc ->
+            doc.getString("status") == "pending_review"
+        }
+
+        // Если есть успешно проверенная попытка
+        val hasApproved = attempts.documents.any { doc ->
+            doc.getBoolean("isPassed") == true
+        }
+
+        return !hasPendingReview && !hasApproved
+    }
+
+    private suspend fun loadTestSettings() {
+        val testDoc = db.collection("tests")
+            .document(testId!!)
+            .get()
+            .await()
+
+        testType = testDoc.getString("type") ?: ""
+
+        testMaxScore = when {
+            testDoc.getLong("max") != null -> testDoc.getLong("max")!!.toDouble()
+            testDoc.getDouble("max") != null -> testDoc.getDouble("max")!!
+            testDoc.getLong("totalScore") != null -> testDoc.getLong("totalScore")!!.toDouble()
+            testDoc.getDouble("totalScore") != null -> testDoc.getDouble("totalScore")!!
+            else -> 20.0
+        }
+
+        testSemester = testDoc.getLong("semester")?.toInt() ?: 1
+
+        val semesterDoc = db.collection("semester_question_stats")
+            .document("semester_$testSemester")
+            .get()
+            .await()
+
+        semesterMaxScore = when {
+            semesterDoc.getLong("max") != null -> semesterDoc.getLong("max")!!.toDouble()
+            semesterDoc.getDouble("max") != null -> semesterDoc.getDouble("max")!!
+            else -> 0.0
+        }
+
+        semesterTotalQuestions = semesterDoc.getLong("totalQuestions")?.toInt() ?: 0
+
+        Log.d("TEST_SETTINGS", "type=$testType testMax=$testMaxScore semester=$testSemester")
+    }
+
+    private suspend fun applyFinalCoefficients(baseScore: Double): Double {
+        val deadlineCoefficient = getDeadlineCoefficient()
+        val attemptCoefficient = getAttemptCoefficient()
+
+        val finalScore = baseScore * deadlineCoefficient * attemptCoefficient
+
+        Log.d("SCORE_COEFFICIENTS", "base=$baseScore deadlineCoef=$deadlineCoefficient attemptCoef=$attemptCoefficient final=$finalScore")
+
+        return finalScore
+    }
+
+    private fun getAttemptCoefficient(): Double {
+        val coefficient = 1.0 - ((attemptNumber - 1) * 0.2)
+        return max(0.2, coefficient)
+    }
+
+    private suspend fun getDeadlineCoefficient(): Double {
+        // Если это тест из долга - не применяем коэффициент срока сдачи
+        if (isDebtTest) {
+            Log.d("TestActivity", "Debt test - deadline coefficient = 1.0")
+            return 1.0
+        }
+
+        val uid = userId ?: return 1.0
+        val currentTestId = testId ?: return 1.0
+
+        val groupSnapshot = db.collection("usersgroup")
+            .whereEqualTo("userId", uid)
+            .limit(1)
+            .get()
+            .await()
+
+        if (groupSnapshot.isEmpty) {
+            return 1.0
+        }
+
+        val groupId = groupSnapshot.documents[0].getString("groupId") ?: return 1.0
+
+        val deadlineSnapshot = db.collection("deadlines")
+            .whereEqualTo("groupId", groupId)
+            .whereEqualTo("testId", currentTestId)
+            .limit(1)
+            .get()
+            .await()
+
+        if (deadlineSnapshot.isEmpty) {
+            return 1.0
+        }
+
+        val deadlineString = deadlineSnapshot.documents[0].getString("deadline") ?: return 1.0
+        val deadlineDate = parseDate(deadlineString) ?: return 1.0
+
+        val today = startOfDay(Date())
+        val deadline = startOfDay(deadlineDate)
+
+        val diffMillis = today.time - deadline.time
+        val diffDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diffMillis)
+
+        return when {
+            diffDays < 0 -> 1.2
+            diffDays == 0L -> 1.0
+            else -> {
+                val weeksLate = kotlin.math.ceil(diffDays / 7.0).toInt()
+                val coefficient = 1.0 - (weeksLate * 0.2)
+                max(0.2, coefficient)
+            }
+        }
+    }
+
+    private fun parseDate(value: String): Date? {
+        return try {
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(value)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun startOfDay(date: Date): Date {
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.time
+    }
+
     private fun showRulesDialog() {
+        val message = if (isInputOnlyTest) {
+            "• Введите ваш ответ в текстовое поле\n• Ответ будет отправлен на проверку преподавателю\n• Дождитесь оценки"
+        } else {
+            "• 1 минута на вопрос\n• Нельзя выходить из приложения"
+        }
+
         AlertDialog.Builder(this)
             .setTitle("Правила теста")
-            .setMessage("• 1 минута на вопрос\n• Нельзя выходить из приложения")
+            .setMessage(message)
             .setPositiveButton("Начать") { _, _ -> loadTest() }
             .setNegativeButton("Назад") { _, _ -> finish() }
             .setCancelable(false)
@@ -108,14 +310,31 @@ class TestActivity : AppCompatActivity() {
     private fun loadTest() {
         lifecycleScope.launch {
             try {
-                val snapshot = db.collection("tests/$testId/parts/$partId/questions").get().await()
+                var snapshot = db.collection("tests")
+                    .document(testId!!)
+                    .collection("parts")
+                    .document(partId!!)
+                    .collection("questions")
+                    .get()
+                    .await()
+
+                if (snapshot.isEmpty && partId == testId) {
+                    snapshot = db.collection("tests")
+                        .document(testId!!)
+                        .collection("questions")
+                        .get()
+                        .await()
+                }
 
                 questionRawData.clear()
                 val loadedQuestions = mutableListOf<Question>()
-
                 var hasManualInput = false
 
-                snapshot.documents.forEach { doc ->
+                val sortedDocuments = snapshot.documents.sortedBy {
+                    it.getLong("num") ?: 0L
+                }
+
+                sortedDocuments.forEach { doc ->
                     val data = doc.data ?: return@forEach
                     questionRawData[doc.id] = data
 
@@ -123,7 +342,6 @@ class TestActivity : AppCompatActivity() {
                     if (isManualInput) hasManualInput = true
 
                     val answersList = if (!isManualInput) {
-                        // Загружаем ВСЕ варианты ответов для обычных вопросов
                         (data["answers"] as? List<Map<String, Any>>)?.map { map ->
                             com.example.prob1.data.Answer(
                                 text = (map["text"] as? String ?: "").trim(),
@@ -145,7 +363,7 @@ class TestActivity : AppCompatActivity() {
                 }
 
                 questions = loadedQuestions
-                isUSPTUTest = hasManualInput
+                isUSPTUTest = hasManualInput || isInputOnlyTest
 
                 if (questions.isEmpty()) {
                     Toast.makeText(this@TestActivity, "Вопросы не найдены", Toast.LENGTH_SHORT).show()
@@ -171,23 +389,23 @@ class TestActivity : AppCompatActivity() {
         binding.testViewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentQuestionIndex = position
-                startQuestionTimerIfNeeded()
+                if (!isInputOnlyTest) {
+                    startQuestionTimerIfNeeded()
+                }
             }
         })
     }
 
-    // ====================== МЕТОДЫ ДЛЯ ФРАГМЕНТОВ ======================
-
     fun onAnswerSelected(isCorrect: Boolean) {
         if (isCorrect) {
-            if (isUSPTUTest) rawScore += 1 else correctAnswers++
+            correctAnswers++
         }
         selectedAnswers[questions[currentQuestionIndex].id] = isCorrect
-        timer?.cancel()
-        moveToNextQuestion()
+        // Убрали вызов moveToNextQuestion() - теперь это делает кнопка "Далее"
     }
 
     fun onManualAnswerSubmitted(questionId: String, answer: String) {
+        Log.d("TestActivity", "onManualAnswerSubmitted - questionId: $questionId, answer: $answer")
         manualAnswers[questionId] = answer.trim()
     }
 
@@ -200,6 +418,8 @@ class TestActivity : AppCompatActivity() {
     }
 
     fun startQuestionTimerIfNeeded() {
+        if (isInputOnlyTest) return
+
         val currentRaw = questionRawData[questions.getOrNull(currentQuestionIndex)?.id]
         val isManual = currentRaw?.get("isManualInput") as? Boolean ?: false
 
@@ -210,6 +430,7 @@ class TestActivity : AppCompatActivity() {
 
     fun startQuestionTimer() {
         timer?.cancel()
+
         timer = object : CountDownTimer(60000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val seconds = (millisUntilFinished / 1000).toInt()
@@ -223,72 +444,178 @@ class TestActivity : AppCompatActivity() {
         }.start()
     }
 
-    // ====================== ЗАВЕРШЕНИЕ ТЕСТА ======================
-
     fun finishTest() {
+        if (isTestCompleted) return
+
         isTestCompleted = true
         timer?.cancel()
 
+        lifecycleScope.launch {
+            try {
+                when {
+                    isInputOnlyTest -> finishInputTest()
+                    testType == "complex" -> finishComplexTest()
+                    else -> finishDefaultTest()
+                }
+            } catch (e: Exception) {
+                Log.e("TestActivity", "Error finishing test", e)
+                Toast.makeText(this@TestActivity, "Ошибка завершения теста: ${e.message}", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    private fun showWaitingForReviewDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Ответ отправлен")
+            .setMessage("Ваш ответ отправлен на проверку преподавателю.\n\nОжидайте оценки. После проверки вы сможете увидеть результат в списке тестов.")
+            .setPositiveButton("OK") { _, _ ->
+                finish()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private suspend fun finishInputTest() {
+        // Получаем ответ из manualAnswers
+        val userAnswer = manualAnswers.values.firstOrNull() ?: ""
+        val questionId = manualAnswers.keys.firstOrNull() ?: ""
+
+        Log.d("TestActivity", "=== FINISH INPUT TEST ===")
+        Log.d("TestActivity", "userAnswer: $userAnswer")
+        Log.d("TestActivity", "questionId: $questionId")
+        Log.d("TestActivity", "attemptDocId: $attemptDocId")
+
+        // Получаем текст вопроса из questionRawData
+        val questionRaw = questionRawData[questionId]
+        val questionText = questionRaw?.get("text") as? String ?: ""
+
+        Log.d("TestActivity", "questionText from rawData: $questionText")
+
+        attemptDocId?.let { attemptId ->
+            val updates = hashMapOf<String, Any>(
+                "status" to "pending_review",
+                "isPassed" to false,
+                "needsTeacherReview" to true,
+                "isManual" to true,
+                "manualAnswer" to userAnswer,
+                "manualQuestionId" to questionId,
+                "questionText" to questionText,
+                "testId" to testId!!,
+                "partId" to partId!!,
+                "userId" to userId!!,
+                "finalScore" to 0.0,
+                "rawScore" to 0.0,
+                "attemptNumber" to attemptNumber,
+                "timestamp" to FieldValue.serverTimestamp()
+            )
+
+            db.collection("test_attempts").document(attemptId).update(updates).await()
+            Log.d("TestActivity", "Updated attempt $attemptId with answer: $userAnswer")
+        }
+
+        showWaitingForReviewDialog()
+    }
+
+    private suspend fun finishComplexTest() {
+        val raw = calculateComplexRawScore()
+        val maxPossibleRaw = calculateComplexMaxPossibleRawScore()
+
+        val baseScore = if (maxPossibleRaw > 0) {
+            raw * (testMaxScore / maxPossibleRaw)
+        } else {
+            0.0
+        }
+
+        val finalScore = applyFinalCoefficients(baseScore)
+
+        addCoinsForFirstTestPassing()
+        updateAttemptDoc(finalScore, raw)
+        updateBestGrade(finalScore)
+
+        showComplexResult(
+            raw = raw.toInt(),
+            maxRaw = maxPossibleRaw,
+            final = finalScore.toInt(),
+            maxFinal = testMaxScore.toInt()
+        )
+    }
+
+    private suspend fun finishDefaultTest() {
         if (isUSPTUTest) {
-            // USPTU тест — считаем 35 баллов
             rawScore = 0.0
 
-            // Подсчёт обычных вопросов (Task 1)
             selectedAnswers.forEach { (_, isCorrect) ->
                 if (isCorrect) rawScore += 1
             }
 
-            // Подсчёт ручных вопросов (Task 2,3,4)
             manualAnswers.forEach { (qId, userAnswer) ->
                 val raw = questionRawData[qId] ?: return@forEach
-                if (raw["isManualInput"] as? Boolean == true) {
-                    val correctSeq = raw["correctSequence"] as? String ?: ""
-                    val maxPoints = (raw["maxPoints"] as? Long ?: 1L).toInt()
-                    rawScore += calculatePartialScore(userAnswer, correctSeq, maxPoints)
+                val isManualInput = raw["isManualInput"] as? Boolean ?: false
+
+                if (isManualInput) {
+                    val questionType = raw["questionType"] as? String ?: "manual_text"
+
+                    when (questionType) {
+                        "spinner_sequence", "spinner_matching" -> {
+                            val correctSeq = raw["correctSequence"] as? String ?: ""
+                            val maxPoints = getIntFromAny(raw["maxPoints"], correctSeq.split(",").filter { it.isNotBlank() }.size)
+                            rawScore += calculatePartialScore(userAnswer, correctSeq, maxPoints)
+                        }
+                        else -> {
+                            Log.d("TestActivity", "Manual text answer for $qId: $userAnswer (waiting for teacher review)")
+                        }
+                    }
                 }
             }
 
-            val finalScore = (rawScore / 35.0 * 20.0).roundToInt().toDouble()
+            val maxPossibleRaw = calculateComplexMaxPossibleRawScore()
 
-            lifecycleScope.launch {
-                updateAttemptDoc(finalScore, rawScore)
-                updateBestGrade(finalScore)
-                showResult(rawScore.toInt(), finalScore.toInt(), true)
+            val baseScore = if (maxPossibleRaw > 0) {
+                rawScore / maxPossibleRaw * testMaxScore
+            } else {
+                0.0
             }
+            val finalScore = applyFinalCoefficients(baseScore)
 
+            addCoinsForFirstTestPassing()
+            updateAttemptDoc(finalScore, rawScore)
+            updateBestGrade(finalScore)
+
+            showComplexResult(
+                raw = rawScore.toInt(),
+                maxRaw = maxPossibleRaw,
+                final = finalScore.toInt(),
+                maxFinal = testMaxScore.toInt()
+            )
         } else {
-            // Обычный тест — старое поведение
-            val finalScore = correctAnswers.toDouble()
-            lifecycleScope.launch {
-                updateAttemptDoc(finalScore, finalScore)
-                updateBestGrade(finalScore)
-                showResult(correctAnswers, correctAnswers, false)
+            val raw = correctAnswers.toDouble()
+
+            val baseScore = if (semesterTotalQuestions > 0 && semesterMaxScore > 0.0) {
+                raw * (semesterMaxScore / semesterTotalQuestions)
+            } else {
+                raw
             }
+
+            val finalScore = applyFinalCoefficients(baseScore)
+
+            addCoinsForFirstTestPassing()
+            updateAttemptDoc(finalScore, raw)
+            updateBestGrade(finalScore)
+
+            showSemesterScaledResult(
+                raw = raw.toInt(),
+                final = finalScore,
+                semesterMax = semesterMaxScore,
+                semesterTotal = semesterTotalQuestions
+            )
         }
     }
 
-    private fun calculatePartialScore(userInput: String, correct: String, maxPoints: Int): Int {
-        if (userInput.isBlank() || correct.isBlank()) return 0
-
-        // Убираем пробелы вокруг разделителей
-        val userList = userInput.replace(" ", "").split(",").map { it.uppercase() }
-        val correctList = correct.replace(" ", "").split(",").map { it.uppercase() }
-
-        var matches = 0
-        for (i in correctList.indices) {
-            if (i < userList.size && userList[i] == correctList[i]) {
-                matches++
-            }
-        }
-        return matches
-    }
-
-    private fun showResult(raw: Int, final: Int, isScaled: Boolean) {
-        val msg = if (isScaled) {
-            "Итоговый балл: $final из 20"
-        } else {
-            "Правильных ответов: $final из ${questions.size}"
-        }
+    private fun showSemesterScaledResult(raw: Int, final: Double, semesterMax: Double, semesterTotal: Int) {
+        val msg = """
+            Балл за тест: ${"%.2f".format(final)}
+        """.trimIndent()
 
         AlertDialog.Builder(this)
             .setTitle("Тест завершён")
@@ -298,7 +625,127 @@ class TestActivity : AppCompatActivity() {
             .show()
     }
 
-    // ====================== ВСПОМОГАТЕЛЬНЫЕ ======================
+    private fun calculateComplexRawScore(): Double {
+        var score = 0.0
+
+        selectedAnswers.forEach { (_, isCorrect) ->
+            if (isCorrect) score += 1.0
+        }
+
+        manualAnswers.forEach { (questionId, userAnswer) ->
+            val raw = questionRawData[questionId] ?: return@forEach
+            val isManualInput = raw["isManualInput"] as? Boolean ?: false
+
+            if (isManualInput) {
+                val correctSequence = raw["correctSequence"] as? String ?: ""
+                val maxPoints = getIntFromAny(
+                    raw["maxPoints"],
+                    correctSequence.split(",").filter { it.isNotBlank() }.size
+                )
+
+                score += calculatePartialScore(userAnswer, correctSequence, maxPoints)
+            }
+        }
+
+        return score
+    }
+
+    private fun calculateComplexMaxPossibleRawScore(): Int {
+        var maxScore = 0
+
+        questions.forEach { question ->
+            val raw = questionRawData[question.id]
+            val isManualInput = raw?.get("isManualInput") as? Boolean ?: false
+
+            maxScore += if (isManualInput) {
+                val correctSequence = raw?.get("correctSequence") as? String ?: ""
+                getIntFromAny(
+                    raw?.get("maxPoints"),
+                    correctSequence.split(",").filter { it.isNotBlank() }.size
+                )
+            } else {
+                1
+            }
+        }
+
+        return maxScore
+    }
+
+    private suspend fun addCoinsForFirstTestPassing() {
+        val uid = userId ?: return
+        val currentTestId = testId ?: return
+        val currentPartId = partId ?: return
+
+        val previousCompletedAttempts = db.collection("test_attempts")
+            .whereEqualTo("userId", uid)
+            .whereEqualTo("testId", currentTestId)
+            .whereEqualTo("partId", currentPartId)
+            .whereEqualTo("status", "completed")
+            .get()
+            .await()
+
+        if (!previousCompletedAttempts.isEmpty) return
+
+        db.collection("users")
+            .document(uid)
+            .update("coins", FieldValue.increment(5))
+            .await()
+    }
+
+    private fun calculatePartialScore(userInput: String, correct: String, maxPoints: Int): Int {
+        if (userInput.isBlank() || correct.isBlank()) return 0
+
+        val userList = userInput
+            .replace(" ", "")
+            .split(",")
+            .map { it.uppercase() }
+
+        val correctList = correct
+            .replace(" ", "")
+            .split(",")
+            .map { it.uppercase() }
+
+        var matches = 0
+
+        for (i in correctList.indices) {
+            if (i < userList.size && userList[i] == correctList[i]) {
+                matches++
+            }
+        }
+
+        return matches.coerceAtMost(maxPoints)
+    }
+    fun getTestType(): String? = testType
+
+    private fun showComplexResult(raw: Int, maxRaw: Int, final: Int, maxFinal: Int) {
+        val msg = """
+                        
+            Итоговый балл: $final из $maxFinal
+        """.trimIndent()
+
+        AlertDialog.Builder(this)
+            .setTitle("Тест завершён")
+            .setMessage(msg)
+            .setPositiveButton("OK") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    fun stopTimer() {
+        timer?.cancel()
+        timer = null
+        binding.timerText.text = "00:00"
+    }
+
+    private fun getIntFromAny(value: Any?, default: Int): Int {
+        return when (value) {
+            is Long -> value.toInt()
+            is Int -> value
+            is Double -> value.toInt()
+            is Number -> value.toInt()
+            else -> default
+        }
+    }
 
     fun getQuestionRawData(questionId: String): Map<String, Any>? = questionRawData[questionId]
 
@@ -311,9 +758,32 @@ class TestActivity : AppCompatActivity() {
             "rawScore" to 0.0,
             "finalScore" to 0.0,
             "isPassed" to false,
-            "status" to "in_progress",
+            "isManual" to isInputOnlyTest,
+            "status" to if (isInputOnlyTest) "pending_review" else "in_progress",
             "timestamp" to FieldValue.serverTimestamp()
         )
+
+        // Добавляем названия для input-тестов
+        if (isInputOnlyTest) {
+            try {
+                val testDoc = db.collection("tests").document(testId!!).get().await()
+                val testTitle = testDoc.getString("title") ?: "Тест"
+
+                val partDoc = db.collection("tests")
+                    .document(testId!!)
+                    .collection("parts")
+                    .document(partId!!)
+                    .get()
+                    .await()
+                val partTitle = partDoc.getString("title") ?: "Часть"
+
+                data["testTitle"] = testTitle
+                data["partTitle"] = partTitle
+            } catch (e: Exception) {
+                Log.e("TestActivity", "Error loading titles", e)
+            }
+        }
+
         return db.collection("test_attempts").add(data).await().id
     }
 
@@ -324,6 +794,7 @@ class TestActivity : AppCompatActivity() {
                     "rawScore" to rawScore,
                     "finalScore" to finalScore,
                     "manualAnswers" to manualAnswers,
+                    "selectedAnswers" to selectedAnswers,
                     "isPassed" to true,
                     "status" to "completed",
                     "timestamp" to FieldValue.serverTimestamp()
@@ -336,7 +807,8 @@ class TestActivity : AppCompatActivity() {
         val snap = db.collection("test_grades")
             .whereEqualTo("userId", userId)
             .whereEqualTo("partId", partId)
-            .get().await()
+            .get()
+            .await()
 
         if (snap.isEmpty) {
             db.collection("test_grades").add(
@@ -351,8 +823,12 @@ class TestActivity : AppCompatActivity() {
             ).await()
         } else {
             val current = snap.documents[0].getDouble("bestScore") ?: 0.0
+
             if (finalScore > current) {
-                snap.documents[0].reference.update("bestScore", finalScore, "bestAttemptId", attemptDocId).await()
+                snap.documents[0].reference.update(
+                    "bestScore", finalScore,
+                    "bestAttemptId", attemptDocId
+                ).await()
             }
         }
     }
@@ -361,17 +837,28 @@ class TestActivity : AppCompatActivity() {
         db.collection("test_attempts")
             .whereEqualTo("userId", userId)
             .whereEqualTo("partId", partId)
-            .get().await().size()
+            .get()
+            .await()
+            .size()
 
     private suspend fun getPartLectionId(): String? =
-        db.document("tests/$testId/parts/$partId").get().await().getString("lecId")
+        db.document("tests/$testId/parts/$partId")
+            .get()
+            .await()
+            .getString("lecId")
 
     private suspend fun getReadCount(lectionId: String): Int {
         val snap = db.collection("user_lections")
             .whereEqualTo("userId", userId)
             .whereEqualTo("lectionId", lectionId)
-            .get().await()
-        return if (snap.isEmpty) 0 else (snap.documents[0].getLong("readCount") ?: 0).toInt()
+            .get()
+            .await()
+
+        return if (snap.isEmpty) {
+            0
+        } else {
+            (snap.documents[0].getLong("readCount") ?: 0).toInt()
+        }
     }
 
     override fun onDestroy() {

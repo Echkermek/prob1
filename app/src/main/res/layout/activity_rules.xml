@@ -4,51 +4,55 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@drawable/gradient_background"
+    android:orientation="vertical"
     tools:context=".RulesActivity">
 
-    <!-- Верхняя панель с заголовком -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingStart="16dp"
+        android:paddingTop="12dp"
         android:paddingEnd="16dp"
-        android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
         <ImageView
             android:id="@+id/backButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:padding="8dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="Назад"
             android:onClick="exit"
+            android:padding="10dp"
             android:src="@drawable/ic_baseline_arrow_back_24"
-            android:tint="@color/white"
-            android:contentDescription="Назад" />
+            app:tint="@color/white" />
 
         <TextView
             android:id="@+id/namepage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="8dp"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
             android:text="Правила"
             android:textColor="@color/white"
-            android:textSize="27sp"
-            android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <Space
+            android:layout_width="48dp"
+            android:layout_height="48dp" />
     </LinearLayout>
 
-    <!-- Переключатель языка -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="end"
-        android:paddingHorizontal="16dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:paddingBottom="8dp">
 
         <Switch
@@ -63,246 +67,242 @@
             android:trackTint="@color/white" />
     </LinearLayout>
 
-    <FrameLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:paddingBottom="16dp">
 
-        <ScrollView
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true"
-            android:paddingBottom="16dp">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
 
-            <LinearLayout
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingHorizontal="16dp">
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="#1CC7DB"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <!-- Карточка 1 - Система выдачи монет -->
-                <androidx.cardview.widget.CardView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="#1CC7DB"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/namecard1"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:fontFamily="serif"
+                        android:gravity="center"
+                        android:text="Система выдачи монет"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                        <TextView
-                            android:id="@+id/namecard1"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:gravity="center"
-                            android:text="Система выдачи монет"
-                            android:textColor="@color/black"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="#80FFFFFF" />
 
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginVertical="12dp"
-                            android:background="#80FFFFFF" />
+                    <TextView
+                        android:id="@+id/textcard1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="serif"
+                        android:justificationMode="inter_word"
+                        android:text="Правильное выполнение любых пяти заданий..."
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                        <TextView
-                            android:id="@+id/textcard1"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:justificationMode="inter_word"
-                            android:text="Правильное выполнение любых пяти заданий..."
-                            android:textColor="@color/black"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="#0EA0E6"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <!-- Карточка 2 - Уровни -->
-                <androidx.cardview.widget.CardView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="#0EA0E6"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/namecard2"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:fontFamily="serif"
+                        android:gravity="center"
+                        android:text="Уровни"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                        <TextView
-                            android:id="@+id/namecard2"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:gravity="center"
-                            android:text="Уровни"
-                            android:textColor="@color/black"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="#80FFFFFF" />
 
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginVertical="12dp"
-                            android:background="#80FFFFFF" />
+                    <TextView
+                        android:id="@+id/textcard2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="serif"
+                        android:justificationMode="inter_word"
+                        android:text="Выполняйте задания успешно и получайте монеты..."
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                        <TextView
-                            android:id="@+id/textcard2"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:justificationMode="inter_word"
-                            android:text="Выполняйте задания успешно и получайте монеты..."
-                            android:textColor="@color/black"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="#1CC7DB"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <!-- Карточка 3 - Система штрафов -->
-                <androidx.cardview.widget.CardView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="#1CC7DB"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/namecard3"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:fontFamily="serif"
+                        android:gravity="center"
+                        android:text="Система штрафов"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                        <TextView
-                            android:id="@+id/namecard3"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:gravity="center"
-                            android:text="Система штрафов"
-                            android:textColor="@color/black"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="#80FFFFFF" />
 
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginVertical="12dp"
-                            android:background="#80FFFFFF" />
+                    <TextView
+                        android:id="@+id/textcard3"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="serif"
+                        android:justificationMode="inter_word"
+                        android:text="Повторная консультация стоит 2 монеты..."
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                        <TextView
-                            android:id="@+id/textcard3"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:justificationMode="inter_word"
-                            android:text="Повторная консультация стоит 2 монеты..."
-                            android:textColor="@color/black"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="#0EA0E6"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <!-- Карточка 4 - У вас закончились монеты? -->
-                <androidx.cardview.widget.CardView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="#0EA0E6"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/namecard4"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:fontFamily="serif"
+                        android:gravity="center"
+                        android:text="У вас закончились монеты?"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                        <TextView
-                            android:id="@+id/namecard4"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:gravity="center"
-                            android:text="У вас закончились монеты?"
-                            android:textColor="@color/black"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="#80FFFFFF" />
 
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginVertical="12dp"
-                            android:background="#80FFFFFF" />
+                    <TextView
+                        android:id="@+id/textcard4"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="serif"
+                        android:justificationMode="inter_word"
+                        android:text="Банк может предоставить вам беспроцентный кредит..."
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                        <TextView
-                            android:id="@+id/textcard4"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:justificationMode="inter_word"
-                            android:text="Банк может предоставить вам беспроцентный кредит..."
-                            android:textColor="@color/black"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="#1CC7DB"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <!-- Карточка 5 - У вас есть долг с прошлого семестра? -->
-                <androidx.cardview.widget.CardView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardBackgroundColor="#1CC7DB"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/namecard5"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:fontFamily="serif"
+                        android:gravity="center"
+                        android:text="У вас есть долг с прошлого семестра?"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                        <TextView
-                            android:id="@+id/namecard5"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:gravity="center"
-                            android:text="У вас есть долг с прошлого семестра?"
-                            android:textColor="@color/black"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="#80FFFFFF" />
 
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginVertical="12dp"
-                            android:background="#80FFFFFF" />
+                    <TextView
+                        android:id="@+id/textcard5"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="serif"
+                        android:justificationMode="inter_word"
+                        android:text="Бонусная программа нашего банка для Вас недоступна."
+                        android:textColor="@color/black"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                        <TextView
-                            android:id="@+id/textcard5"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="serif"
-                            android:justificationMode="inter_word"
-                            android:text="Бонусная программа нашего банка для Вас недоступна."
-                            android:textColor="@color/black"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-            </LinearLayout>
-        </ScrollView>
-    </FrameLayout>
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>

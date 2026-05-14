@@ -2,50 +2,76 @@ package com.example.prob1.ui.tests
 
 import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.prob1.data.Test
 import com.example.prob1.databinding.ItemTestBinding
+import com.example.prob1.data.Test
 
-class TestsAdapter(private val onTestClick: (String, Int, Boolean) -> Unit) :
-    RecyclerView.Adapter<TestsAdapter.TestViewHolder>() {
+class TestsAdapter(
+    private var deadlines: Map<String, String>,
+    private val onTestClick: (testId: String, semester: Int, hasDeadline: Boolean) -> Unit
+) : RecyclerView.Adapter<TestsAdapter.TestViewHolder>() {
 
-    private var tests = emptyList<Test>()
+    private var tests: List<Test> = emptyList()
+    private var testCompletionStatus = mutableMapOf<String, Boolean>() // testId -> isCompleted
 
-    inner class TestViewHolder(val binding: ItemTestBinding) :
-        RecyclerView.ViewHolder(binding.root)
+    class TestViewHolder(val binding: ItemTestBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TestViewHolder {
-        val binding = ItemTestBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
+        val binding = ItemTestBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return TestViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: TestViewHolder, position: Int) {
         val test = tests[position]
-        holder.binding.testTitle.text = test.title
-        holder.binding.testNumber.text = "Тест ${test.num} (Семестр ${test.semester})"
 
-        if (!test.isAvailable) {
-            holder.binding.testTitle.setTextColor(Color.GRAY)
-            holder.binding.testNumber.setTextColor(Color.GRAY)
-        } else {
-            holder.binding.testTitle.setTextColor(Color.BLACK)
-            holder.binding.testNumber.setTextColor(Color.BLACK)
-        }
+        holder.binding.apply {
+            testTitle.text = test.title
+            testNumber.text = "Тест ${position + 1}"
 
-        holder.itemView.setOnClickListener {
-            onTestClick(test.id, test.semester, test.hasParts)
+            val deadline = deadlines[test.id]
+            val hasDeadline = !deadline.isNullOrEmpty()
+
+            if (hasDeadline) {
+                testDeadline.text = "Срок сдачи: $deadline"
+                testDeadline.visibility = View.VISIBLE
+            } else {
+                testDeadline.text = "Срок сдачи не установлен"
+                testDeadline.visibility = View.VISIBLE
+            }
+
+            // Отображаем статус прохождения теста
+            val isCompleted = testCompletionStatus[test.id] == true
+            if (isCompleted) {
+                testStatus.text = "Пройден"
+                testStatus.visibility = View.VISIBLE
+                testStatus.setTextColor(Color.parseColor("#4CAF50")) // Зеленый цвет
+            } else {
+                testStatus.visibility = View.GONE
+            }
+
+            root.setOnClickListener {
+                onTestClick(test.id, test.semester, hasDeadline)
+            }
         }
     }
 
-    override fun getItemCount() = tests.size
+    override fun getItemCount(): Int = tests.size
 
-    fun submitList(newList: List<Test>) {
-        tests = newList.sortedBy { it.num }
+    fun submitList(newTests: List<Test>) {
+        this.tests = newTests
+        notifyDataSetChanged()
+    }
+
+    fun updateDeadlines(newDeadlines: Map<String, String>) {
+        this.deadlines = newDeadlines
+        notifyDataSetChanged()
+    }
+
+    fun updateTestCompletionStatus(status: Map<String, Boolean>) {
+        this.testCompletionStatus.clear()
+        this.testCompletionStatus.putAll(status)
         notifyDataSetChanged()
     }
 }

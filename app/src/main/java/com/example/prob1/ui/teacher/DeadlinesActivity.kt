@@ -1,34 +1,46 @@
 package com.example.prob1.ui.teacher
 
 import android.app.DatePickerDialog
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.prob1.R
 import com.example.prob1.databinding.ActivityDeadlinesBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
+import java.util.*
 
 class DeadlinesActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityDeadlinesBinding
     private lateinit var db: FirebaseFirestore
-    private lateinit var datePickerDialog: DatePickerDialog
+    private lateinit var testsAdapter: TeacherTestAdapter
+
     private val groups = mutableListOf<Group>()
     private val tests = mutableListOf<Test>()
+    private val deadlinesMap = mutableMapOf<String, String>()
     private var selectedGroupId: String = ""
+    private var selectedGroupName: String = ""
+    private var currentCourseId: String = ""
 
     data class Group(
         val id: String,
         val name: String
-    )
+    ) {
+        override fun toString(): String = name
+    }
 
     data class Test(
         val id: String,
-        val title: String
+        val title: String,
+        val courseId: String
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,16 +50,23 @@ class DeadlinesActivity : AppCompatActivity() {
 
         db = FirebaseFirestore.getInstance()
 
+        setupRecyclerView()
+        setupButtons()
         loadGroups()
+    }
 
-        binding.setDeadlineButton.setOnClickListener {
-            if (selectedGroupId.isEmpty()) {
-                Toast.makeText(this, "Выберите группу", Toast.LENGTH_SHORT).show()
-            } else if (tests.isEmpty()) {
-                Toast.makeText(this, "Нет доступных тестов", Toast.LENGTH_SHORT).show()
-            } else {
-                showDatePicker()
-            }
+    private fun setupRecyclerView() {
+        testsAdapter = TeacherTestAdapter(tests, deadlinesMap) { test ->
+            showDatePicker(test)
+        }
+
+        binding.testsRecycler.layoutManager = LinearLayoutManager(this)
+        binding.testsRecycler.adapter = testsAdapter
+    }
+
+    private fun setupButtons() {
+        binding.backButton.setOnClickListener {
+            finish()
         }
     }
 
@@ -56,7 +75,6 @@ class DeadlinesActivity : AppCompatActivity() {
             .get()
             .addOnSuccessListener { documents ->
                 val uniqueGroups = mutableMapOf<String, String>()
-
                 for (doc in documents) {
                     val groupId = doc.getString("groupId")
                     val groupName = doc.getString("groupName")
@@ -75,138 +93,289 @@ class DeadlinesActivity : AppCompatActivity() {
                     return@addOnSuccessListener
                 }
 
-                val adapter = ArrayAdapter(
+                val adapter = object : ArrayAdapter<Group>(
                     this,
                     android.R.layout.simple_spinner_item,
-                    groups.map { it.name }
-                ).apply {
-                    setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                }
+                    groups
+                ) {
+                    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                        val view = super.getView(position, convertView, parent)
+                        val textView = view as TextView
+                        textView.setTextColor(Color.WHITE)
+                        return view
+                    }
 
+                    override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                        val view = super.getDropDownView(position, convertView, parent)
+                        val textView = view as TextView
+                        textView.setTextColor(Color.BLACK)
+                        return view
+                    }
+                }
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                 binding.courseSpinner.adapter = adapter
 
                 binding.courseSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                        selectedGroupId = groups[position].id
-                        Log.d("Deadlines", "Выбрана группа: ${groups[position].name}, ID: $selectedGroupId")
-                        loadTests()
+                    override fun onItemSelected(
+                        parent: android.widget.AdapterView<*>,
+                        view: View?,
+                        position: Int,
+                        id: Long
+                    ) {
+                        if (position in groups.indices) {
+                            selectedGroupId = groups[position].id
+                            selectedGroupName = groups[position].name
+                            Log.d("Deadlines", "Выбрана группа: ${groups[position].name}, ID: $selectedGroupId")
+                            // Сначала получаем курс группы, потом тесты
+                            getCourseForGroup()
+                        }
                     }
 
                     override fun onNothingSelected(parent: android.widget.AdapterView<*>) {
                         selectedGroupId = ""
                         tests.clear()
-                        updateTestSpinner()
+                        deadlinesMap.clear()
+                        updateTestsRecycler()
                     }
                 }
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Ошибка загрузки групп", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Ошибка загрузки групп: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun loadTests() {
-        Log.d("Deadlines", "Загружаем все тесты")
-
-        // ИСПРАВЛЕНИЕ: используем правильное название коллекции "tests"
-        db.collection("tests")
+    // Получаем курс для выбранной группы из коллекции course_groups
+    private fun getCourseForGroup() {
+        db.collection("course_groups")
+            .whereEqualTo("groupId", selectedGroupId)
             .get()
-            .addOnSuccessListener { testDocs ->
-                tests.clear()
-
-                if (testDocs.isEmpty) {
-                    Log.d("Deadlines", "Нет доступных тестов в коллекции 'tests'")
-                    updateTestSpinner()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty) {
+                    Toast.makeText(this, "Группа не привязана к курсу", Toast.LENGTH_SHORT).show()
                     return@addOnSuccessListener
                 }
 
-                Log.d("Deadlines", "Найдено ${testDocs.size()} тестов")
-
-                for (testDoc in testDocs) {
-                    val title = testDoc.getString("title") ?: "Без названия"
-                    tests.add(Test(testDoc.id, title))
-                    Log.d("Deadlines", "Добавлен тест: $title (ID: ${testDoc.id})")
+                val courseId = documents.documents[0].getString("courseId")
+                if (!courseId.isNullOrEmpty()) {
+                    currentCourseId = courseId
+                    Log.d("Deadlines", "Найден courseId: $currentCourseId для группы $selectedGroupName")
+                    loadTestsForCourse()
+                    loadDeadlinesForGroup()
+                } else {
+                    Toast.makeText(this, "Ошибка: courseId не найден", Toast.LENGTH_SHORT).show()
                 }
-
-                updateTestSpinner()
             }
             .addOnFailureListener { e ->
-                Log.e("Deadlines", "Ошибка загрузки тестов из коллекции 'tests': ${e.message}", e)
-                tests.clear()
-                updateTestSpinner()
+                Log.e("Deadlines", "Ошибка загрузки курса для группы", e)
+                Toast.makeText(this, "Ошибка загрузки курса: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun updateTestSpinner() {
-        val testTitles = if (tests.isEmpty()) {
-            listOf("Нет доступных тестов")
-        } else {
-            tests.map { it.title }
-        }
+    private fun loadTestsForCourse() {
+        db.collection("test_course")
+            .whereEqualTo("courseId", currentCourseId)
+            .get()
+            .addOnSuccessListener { testCourseDocs ->
+                val testIds = mutableListOf<String>()
 
-        Log.d("Deadlines", "Обновление спиннера тестов: ${testTitles.size} элементов")
+                for (doc in testCourseDocs) {
+                    val testId = doc.getString("testId")
+                    if (!testId.isNullOrEmpty()) {
+                        // Проверяем, что это не пустая строка и не "null"
+                        if (testId != "null" && testId.isNotBlank()) {
+                            testIds.add(testId)
+                            Log.d("Deadlines", "Найден testId: $testId")
+                        }
+                    }
+                }
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, testTitles).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        binding.testSpinner.adapter = adapter
+                if (testIds.isEmpty()) {
+                    tests.clear()
+                    updateTestsRecycler()
+                    Toast.makeText(this@DeadlinesActivity, "Нет тестов для этого курса", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
 
-        binding.setDeadlineButton.isEnabled = tests.isNotEmpty()
+                // Удаляем дубликаты testIds
+                val uniqueTestIds = testIds.distinct()
 
-
+                // Загружаем информацию о тестах по их ID
+                loadTestDetails(uniqueTestIds)
+            }
+            .addOnFailureListener { e ->
+                Log.e("Deadlines", "Ошибка загрузки test_course", e)
+                tests.clear()
+                updateTestsRecycler()
+                Toast.makeText(this@DeadlinesActivity, "Ошибка загрузки тестов курса", Toast.LENGTH_SHORT).show()
+            }
     }
 
-    private fun showDatePicker() {
-        val calendar = Calendar.getInstance()
-        val year = calendar.get(Calendar.YEAR)
-        val month = calendar.get(Calendar.MONTH)
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
+    private fun loadTestDetails(testIds: List<String>) {
+        tests.clear()
 
-        datePickerDialog = DatePickerDialog(
+        // Загружаем каждый тест по ID
+        var loadedCount = 0
+        for (testId in testIds) {
+            db.collection("tests").document(testId)
+                .get()
+                .addOnSuccessListener { testDoc ->
+                    // Проверяем, существует ли документ и есть ли у него title
+                    if (testDoc.exists()) {
+                        val title = testDoc.getString("title")
+                        if (!title.isNullOrEmpty() && title != "null") {
+                            tests.add(Test(testId, title, currentCourseId))
+                            Log.d("Deadlines", "Загружен тест: $title (ID: $testId)")
+                        } else {
+                            Log.e("Deadlines", "Тест $testId не имеет названия, пропускаем")
+                        }
+                    } else {
+                        Log.e("Deadlines", "Тест $testId не существует в коллекции tests, пропускаем")
+                    }
+                    loadedCount++
+
+                    if (loadedCount == testIds.size) {
+                        // Все тесты загружены
+                        Log.d("Deadlines", "Загружено тестов: ${tests.size}")
+                        updateTestsRecycler()
+
+                        if (tests.isEmpty()) {
+                            Toast.makeText(this@DeadlinesActivity, "Нет доступных тестов", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("Deadlines", "Ошибка загрузки теста $testId", e)
+                    loadedCount++
+                    if (loadedCount == testIds.size) {
+                        updateTestsRecycler()
+                    }
+                }
+        }
+    }
+
+    private fun loadDeadlinesForGroup() {
+        if (selectedGroupId.isEmpty()) return
+
+        db.collection("deadlines")
+            .whereEqualTo("groupId", selectedGroupId)
+            .get()
+            .addOnSuccessListener { documents ->
+                deadlinesMap.clear()
+                for (doc in documents) {
+                    val testId = doc.getString("testId")
+                    val deadline = doc.getString("deadline")
+                    if (testId != null && deadline != null) {
+                        deadlinesMap[testId] = deadline
+                        Log.d("Deadlines", "Дедлайн для теста $testId: $deadline")
+                    }
+                }
+                updateTestsRecycler()
+            }
+            .addOnFailureListener { e ->
+                Log.e("Deadlines", "Ошибка загрузки дедлайнов", e)
+            }
+    }
+
+    private fun updateTestsRecycler() {
+        testsAdapter.updateTests(tests, deadlinesMap)
+
+        if (tests.isEmpty()) {
+            binding.emptyTestsText.visibility = View.VISIBLE
+            binding.testsRecycler.visibility = View.GONE
+            binding.emptyTestsText.text = "Нет доступных тестов"
+        } else {
+            binding.emptyTestsText.visibility = View.GONE
+            binding.testsRecycler.visibility = View.VISIBLE
+        }
+    }
+
+    private fun showDatePicker(test: Test) {
+        val calendar = Calendar.getInstance()
+        val datePickerDialog = DatePickerDialog(
             this,
             { _, selectedYear, selectedMonth, selectedDay ->
-                val selectedTest = tests[binding.testSpinner.selectedItemPosition]
-                val selectedGroup = groups.find { it.id == selectedGroupId }
                 setDeadline(
-                    testTitle = selectedTest.title,
+                    test = test,
                     year = selectedYear,
                     month = selectedMonth,
-                    day = selectedDay,
-                    group = selectedGroup,
-                    testId = selectedTest.id
+                    day = selectedDay
                 )
             },
-            year, month, day
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
         )
         datePickerDialog.show()
     }
 
-    private fun setDeadline(testTitle: String, year: Int, month: Int, day: Int, group: Group?, testId: String) {
-        if (group == null) {
-            Toast.makeText(this, "Ошибка: группа не найдена", Toast.LENGTH_SHORT).show()
+    private fun setDeadline(
+        test: Test,
+        year: Int,
+        month: Int,
+        day: Int
+    ) {
+        if (selectedGroupId.isEmpty()) {
+            Toast.makeText(this, "Выберите группу", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val calendar = Calendar.getInstance().apply { set(year, month, day) }
-        val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+        val calendar = Calendar.getInstance().apply {
+            set(year, month, day)
+        }
+        val formattedDate = SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        ).format(calendar.time)
 
-        val deadlineData = hashMapOf(
-            "groupId" to group.id,
-            "groupName" to group.name,
-            "testId" to testId,
-            "testTitle" to testTitle,
+        val deadlineData: Map<String, Any> = mapOf(
+            "groupId" to selectedGroupId,
+            "groupName" to selectedGroupName,
+            "testId" to test.id,
+            "testTitle" to test.title,
             "deadline" to formattedDate,
             "createdAt" to System.currentTimeMillis()
         )
 
         db.collection("deadlines")
-            .add(deadlineData)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Срок сдачи установлен для группы ${group.name}", Toast.LENGTH_SHORT).show()
-                Log.d("Deadlines", "Дедлайн установлен: группа=${group.name}, тест=$testTitle, дата=$formattedDate")
+            .whereEqualTo("groupId", selectedGroupId)
+            .whereEqualTo("testId", test.id)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty) {
+                    db.collection("deadlines")
+                        .add(deadlineData)
+                        .addOnSuccessListener {
+                            Toast.makeText(
+                                this,
+                                "Срок сдачи \"${test.title}\" установлен",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            deadlinesMap[test.id] = formattedDate
+                            updateTestsRecycler()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                } else {
+                    val docId = documents.documents[0].id
+                    db.collection("deadlines").document(docId)
+                        .update(deadlineData)
+                        .addOnSuccessListener {
+                            Toast.makeText(
+                                this,
+                                "Срок сдачи  теста \"${test.title}\" обновлен",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            deadlinesMap[test.id] = formattedDate
+                            updateTestsRecycler()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(this, "Ошибка обновления: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
-                Log.e("Deadlines", "Ошибка установки дедлайна", e)
+                Toast.makeText(this, "Ошибка проверки дедлайна: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 }

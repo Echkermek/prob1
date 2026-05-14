@@ -10,7 +10,8 @@ data class Test(
     val num: Int,
     val semester: Int,
     val isAvailable: Boolean,
-    val hasParts: Boolean = true  // по умолчанию true для обратной совместимости
+    val hasParts: Boolean = true,
+    val courseId: String? = null
 )
 
 data class Part(

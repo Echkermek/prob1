@@ -17,14 +17,15 @@ class TestPagerAdapter(
 
     override fun createFragment(position: Int): Fragment {
         val question = questions[position]
-
-        // Получаем сырые данные вопроса через TestActivity
         val rawData = (fragmentActivity as? TestActivity)?.getQuestionRawData(question.id)
+        val partType = (fragmentActivity as? TestActivity)?.getPartType()
 
-        val isManualInput = rawData?.get("isManualInput") as? Boolean ?: false
+        // Проверяем тип из part ИЛИ из вопроса
+        val isManualQuestion = rawData?.get("isManualInput") as? Boolean ?: false ||
+                rawData?.get("type") == "input" ||
+                partType == "input"
 
-        return if (isManualInput) {
-            // Вопросы с вводом последовательности (Task 2,3,4)
+        return if (isManualQuestion) {
             ManualQuestionFragment.newInstance(
                 questionId = question.id,
                 questionText = question.text,
@@ -35,7 +36,6 @@ class TestPagerAdapter(
                 total = questions.size
             )
         } else {
-            // Обычные вопросы с выбором ответа
             QuestionFragment.newInstance(
                 question = question,
                 position = position,

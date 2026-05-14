@@ -1,5 +1,4 @@
-// com/example/prob1/data/database/repository/UserRepository.kt
-package com.example.prob1.data.database.repository
+package com.example.prob1.data.repository
 
 import android.content.Context
 import android.util.Log
@@ -26,22 +25,18 @@ class UserRepository(context: Context) {
         private const val CACHE_STALE_TIME = 30 * 60 * 1000L
     }
 
-    // ==================== Данные пользователя ====================
 
     suspend fun getUserData(userId: String, forceRefresh: Boolean = false): UserDataEntity? {
         return withContext(Dispatchers.IO) {
             val cachedData = db.userDataDao().getUserData(userId)
-            val isStale = isCacheStale(SYNC_TYPE_USER_DATA)
-
-            if (cachedData != null && !forceRefresh && !isStale) {
-                return@withContext cachedData
-            }
 
             try {
                 val userData = fetchUserDataFromFirestore(userId)
-                userData?.let { db.userDataDao().insertUserData(it) }
-                updateSyncTime(SYNC_TYPE_USER_DATA)
-                userData
+                userData?.let {
+                    db.userDataDao().insertUserData(it)
+                    updateSyncTime(SYNC_TYPE_USER_DATA)
+                }
+                userData ?: cachedData
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching user data", e)
                 cachedData
@@ -51,10 +46,8 @@ class UserRepository(context: Context) {
 
     private suspend fun fetchUserDataFromFirestore(userId: String): UserDataEntity? {
         return try {
-            // Загружаем базовые данные пользователя
             val userDoc = firestore.collection("users").document(userId).get().await()
 
-            // Загружаем группу пользователя
             val groupSnapshot = firestore.collection("usersgroup")
                 .whereEqualTo("userId", userId)
                 .get()
@@ -64,7 +57,6 @@ class UserRepository(context: Context) {
             val groupId = groupDoc?.getString("groupId")
             val groupName = groupDoc?.getString("groupName")
 
-            // Загружаем курс для группы
             var courseId: String? = null
             var semester = 1
 
@@ -80,10 +72,9 @@ class UserRepository(context: Context) {
                 semester = (courseGroup?.get("semester") as? Long)?.toInt() ?: 1
             }
 
-            // Загружаем монеты
-            val coinsDoc = firestore.collection("user_coins").document(userId).get().await()
-            val coins = coinsDoc.getLong("coins")?.toInt() ?: 100
-            val credit = coinsDoc.getLong("credit")?.toInt() ?: 0
+
+            val coins = userDoc.getLong("coins")?.toInt() ?: 100
+            val credit = userDoc.getLong("credit")?.toInt() ?: 0
 
             // Загружаем общий балл
             val gradesSnapshot = firestore.collection("test_grades")
@@ -92,7 +83,7 @@ class UserRepository(context: Context) {
                 .await()
 
             val totalScore = gradesSnapshot.documents.sumOf { it.getDouble("bestScore") ?: 0.0 }
-            val grade = calculateGrade(totalScore)
+            val grade = calculateGradeFromFirestore(totalScore, semester)
 
             UserDataEntity(
                 userId = userId,
@@ -114,13 +105,38 @@ class UserRepository(context: Context) {
         }
     }
 
-    private fun calculateGrade(totalPoints: Double): Int {
-        return when {
-            totalPoints >= 106 -> 5
-            totalPoints >= 90 -> 4
-            totalPoints >= 76 -> 3
-            totalPoints >= 0 -> 2
-            else -> 0
+    private suspend fun calculateGradeFromFirestore(
+        totalPoints: Double,
+        semester: Int
+    ): Int {
+        return try {
+            val ratingDoc = firestore.collection("rating")
+                .whereEqualTo("semester", semester)
+                .limit(1)
+                .get()
+                .await()
+                .documents
+                .firstOrNull()
+
+            val min3 = ratingDoc?.getLong("min3")?.toDouble() ?: 76.0
+            val min4 = ratingDoc?.getLong("min4")?.toDouble() ?: 90.0
+            val min5 = ratingDoc?.getLong("min5")?.toDouble() ?: 106.0
+
+            when {
+                totalPoints >= min5 -> 5
+                totalPoints >= min4 -> 4
+                totalPoints >= min3 -> 3
+                else -> 2
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating grade from Firestore", e)
+
+            when {
+                totalPoints >= 106 -> 5
+                totalPoints >= 90 -> 4
+                totalPoints >= 76 -> 3
+                else -> 2
+            }
         }
     }
 
@@ -196,7 +212,7 @@ class UserRepository(context: Context) {
     suspend fun getUserCoins(userId: String): Int {
         return withContext(Dispatchers.IO) {
             try {
-                val doc = firestore.collection("user_coins").document(userId).get().await()
+                val doc = firestore.collection("users").document(userId).get().await()
                 doc.getLong("coins")?.toInt() ?: 100
             } catch (e: Exception) {
                 100
@@ -207,9 +223,10 @@ class UserRepository(context: Context) {
     suspend fun updateUserCoins(userId: String, newCoins: Int) {
         withContext(Dispatchers.IO) {
             try {
-                firestore.collection("user_coins").document(userId)
+                firestore.collection("users").document(userId)
                     .update("coins", newCoins)
                     .await()
+
                 db.userDataDao().updateUserCoins(userId, newCoins)
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating coins", e)
@@ -220,14 +237,15 @@ class UserRepository(context: Context) {
     suspend fun deductCoin(userId: String, amount: Int = 1): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val currentCoins = getUserCoins(userId)
+                    val currentCoins = getUserCoins(userId)
                 if (currentCoins < amount) return@withContext false
 
-                firestore.collection("user_coins").document(userId)
+                firestore.collection("users").document(userId)
                     .update("coins", FieldValue.increment(-amount.toLong()))
                     .await()
 
                 db.userDataDao().updateUserCoins(userId, currentCoins - amount)
+
                 true
             } catch (e: Exception) {
                 false
@@ -238,7 +256,7 @@ class UserRepository(context: Context) {
     suspend fun addCoins(userId: String, amount: Int) {
         withContext(Dispatchers.IO) {
             try {
-                firestore.collection("user_coins").document(userId)
+                firestore.collection("users").document(userId)
                     .update("coins", FieldValue.increment(amount.toLong()))
                     .await()
 

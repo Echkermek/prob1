@@ -34,7 +34,7 @@ class StudentAuthActivity : AppCompatActivity() {
             startActivity(Intent(this, StudentRegisterActivity::class.java))
         }
 
-        // Setup password visibility toggle
+
         setupPasswordVisibilityToggle()
     }
 

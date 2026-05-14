@@ -9,7 +9,7 @@ import com.example.prob1.data.Test
 import com.example.prob1.data.database.entities.UserDataEntity
 import com.example.prob1.data.database.repository.LectionRepository
 import com.example.prob1.data.database.repository.TestRepository
-import com.example.prob1.data.database.repository.UserRepository
+import com.example.prob1.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

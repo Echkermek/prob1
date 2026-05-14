@@ -1,10 +1,11 @@
 package com.example.prob1.ui.teacher
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.example.prob1.databinding.ActivityTeacherAuthBinding
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
 class TeacherAuthActivity : AppCompatActivity() {
@@ -28,17 +29,28 @@ class TeacherAuthActivity : AppCompatActivity() {
 
             checkTeacherCredentials(login, password)
         }
+
+        binding.registerButton.setOnClickListener {
+            startActivity(Intent(this, TeacherRegisterActivity::class.java))
+        }
     }
 
     private fun checkTeacherCredentials(login: String, password: String) {
         db.collection("teacher")
             .whereEqualTo("login", login)
             .whereEqualTo("password", password)
+            .limit(1)
             .get()
             .addOnSuccessListener { documents ->
                 if (documents.isEmpty) {
                     Toast.makeText(this, "Неверный логин или пароль", Toast.LENGTH_SHORT).show()
                 } else {
+                    val teacherDoc = documents.documents[0]
+
+                    db.collection("teacher")
+                        .document(teacherDoc.id)
+                        .update("last_login_time", FieldValue.serverTimestamp())
+
                     startActivity(Intent(this, TeacherMain::class.java))
                     finish()
                 }

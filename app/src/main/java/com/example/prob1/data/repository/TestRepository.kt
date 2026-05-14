@@ -65,7 +65,7 @@ class TestRepository(context: Context) {
                             num = doc.getLong("num")?.toInt() ?: 0,
                             semester = doc.getLong("semester")?.toInt() ?: 1,
                             isAvailable = doc.getBoolean("isAvailable") ?: true,
-                            hasParts = doc.getBoolean("hasParts") ?: true,
+                            hasParts = true,
                             courseId = doc.getString("courseId")
                         )
                     } catch (e: Exception) {

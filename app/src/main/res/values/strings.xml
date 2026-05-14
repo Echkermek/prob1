@@ -11,4 +11,15 @@
     <string name="student_format">Студент %d</string>
     <string name="you_with_nickname">Вы (%s)</string>
     <string name="user_info_format">%s: %d монет (Место %d)</string>
+    <string name="not_authorized">Не авторизован</string>
+    <string name="test_available_from_semester">Этот тест доступен только с %d семестра</string>
+    <string name="loading_test">Загрузка теста...</string>
+    <string name="test_load_error">Ошибка загрузки теста</string>
+    <string name="tests_not_found">Тесты не найдены</string>
+    <string name="debts_count">Долги (%d)</string>
+    <string name="no_active_debts">У вас нет активных долгов</string>
+    <string name="unknown_course">Неизвестный курс</string>
+    <string name="debt_item_format">• %s\n  Средний балл: %.1f (выполнено %d из %d тестов)</string>
+    <string name="your_debts">Ваши долги</string>
+    <string name="debt_load_error">Ошибка загрузки долгов</string>
 </resources>

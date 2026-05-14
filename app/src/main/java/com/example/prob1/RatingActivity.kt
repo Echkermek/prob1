@@ -10,6 +10,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
 class RatingActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityRatingBinding
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -22,6 +23,10 @@ class RatingActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
+
+        binding.backButton.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
 
         binding.ratingRecyclerView.layoutManager = LinearLayoutManager(this)
         loadGroupRating()
@@ -50,11 +55,13 @@ class RatingActivity : AppCompatActivity() {
                     .get()
                     .addOnSuccessListener { studentDocs ->
                         val students = mutableListOf<StudentData>()
+
                         for (doc in studentDocs.documents) {
                             val userId = doc.getString("userId") ?: ""
                             val userName = doc.getString("userName") ?: "Неизвестный"
                             students.add(StudentData(userId, userName))
                         }
+
                         loadStudentsData(students, currentUserId, currentUserName)
                     }
                     .addOnFailureListener { e ->
@@ -66,7 +73,11 @@ class RatingActivity : AppCompatActivity() {
             }
     }
 
-    private fun loadStudentsData(students: List<StudentData>, currentUserId: String, currentUserName: String) {
+    private fun loadStudentsData(
+        students: List<StudentData>,
+        currentUserId: String,
+        currentUserName: String
+    ) {
         val allRatings = mutableListOf<UserRating>()
         var loadedCount = 0
 
@@ -76,16 +87,12 @@ class RatingActivity : AppCompatActivity() {
         }
 
         for (student in students) {
-            db.collection("user_coins")
-                .whereEqualTo("userId", student.userId)
-                .limit(1)
+            db.collection("users")
+                .document(student.userId)
                 .get()
-                .addOnSuccessListener { coinsDocs ->
-                    val coins = if (!coinsDocs.isEmpty) {
-                        coinsDocs.documents[0].getLong("coins") ?: 0L
-                    } else {
-                        0L
-                    }
+                .addOnSuccessListener { userDoc ->
+
+                    val coins = userDoc.getLong("coins") ?: 0L
 
                     val rating = UserRating(
                         name = student.userName,
@@ -94,7 +101,6 @@ class RatingActivity : AppCompatActivity() {
                     )
 
                     allRatings.add(rating)
-                    Log.d("RatingActivity", "Loaded student: ${student.userName}, coins: $coins")
 
                     loadedCount++
                     if (loadedCount == students.size) {
@@ -103,12 +109,14 @@ class RatingActivity : AppCompatActivity() {
                 }
                 .addOnFailureListener { e ->
                     Log.e("RatingActivity", "Error loading coins for ${student.userName}", e)
-                    // Добавляем студента с нулевыми монетами в случае ошибки
-                    allRatings.add(UserRating(
-                        name = student.userName,
-                        coins = 0L,
-                        userId = student.userId
-                    ))
+
+                    allRatings.add(
+                        UserRating(
+                            name = student.userName,
+                            coins = 0L,
+                            userId = student.userId
+                        )
+                    )
 
                     loadedCount++
                     if (loadedCount == students.size) {
@@ -118,32 +126,45 @@ class RatingActivity : AppCompatActivity() {
         }
     }
 
-    private fun processRatings(allRatings: List<UserRating>, currentUserId: String, currentUserName: String) {
-        // Для студентов сортируем только по монетам
+    private fun processRatings(
+        allRatings: List<UserRating>,
+        currentUserId: String,
+        currentUserName: String
+    ) {
         val sortedRatings = allRatings.sortedByDescending { it.coins }
-
-        // Определяем позицию текущего пользователя
         val userPosition = sortedRatings.indexOfFirst { it.userId == currentUserId } + 1
 
-        // Показываем топ-5 с вымышленными именами
         val top5Ratings = sortedRatings.take(5).mapIndexed { index, rating ->
             val isCurrentUser = rating.userId == currentUserId
+
             val displayName = if (isCurrentUser) {
-                getString(R.string.you_with_nickname, fakeNames.getOrElse(index) { getString(R.string.student_format, index + 1) })
+                getString(
+                    R.string.you_with_nickname,
+                    fakeNames.getOrElse(index) {
+                        getString(R.string.student_format, index + 1)
+                    }
+                )
             } else {
-                fakeNames.getOrElse(index) { getString(R.string.student_format, index + 1) }
+                fakeNames.getOrElse(index) {
+                    getString(R.string.student_format, index + 1)
+                }
             }
+
             rating.copy(name = displayName)
         }
 
-        // Передаем false для студента (баллы не показываются)
-        binding.ratingRecyclerView.adapter = RatingAdapter(top5Ratings, { /* do nothing on click */ }, false)
+        binding.ratingRecyclerView.adapter =
+            RatingAdapter(top5Ratings, { }, false)
 
         val currentUserRating = sortedRatings.find { it.userId == currentUserId }
         currentUserRating?.let {
-            binding.currentUserInfo.text = getString(R.string.user_info_format, currentUserName, it.coins, userPosition)
+            binding.currentUserInfo.text =
+                getString(R.string.user_info_format, currentUserName, it.coins, userPosition)
         }
     }
 
-    private data class StudentData(val userId: String, val userName: String)
+    private data class StudentData(
+        val userId: String,
+        val userName: String
+    )
 }

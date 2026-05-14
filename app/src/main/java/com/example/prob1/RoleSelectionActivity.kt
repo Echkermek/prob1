@@ -36,12 +36,11 @@ class RoleSelectionActivity : AppCompatActivity() {
         binding.btnStudent.setOnClickListener {
             startActivity(Intent(this, StudentAuthActivity::class.java))
         }
-
-
+/*
         // Кнопка для теста Drilling Rig
-        binding.button.setOnClickListener {   // измените ID кнопки под вашу разметку
-            uploadParticipleTest()
-        }
+        binding.btnUploadGerund.setOnClickListener {   // измените ID кнопки под вашу разметку
+            uploadFunctionalPartsTest()
+        }*/
 
         // Кнопка для теста Global Financial Systems
         /*binding.buttonFinance.setOnClickListener {    // измените ID кнопки под вашу разметку
@@ -49,25 +48,469 @@ class RoleSelectionActivity : AppCompatActivity() {
         }*/
     }
 
+    // ==================== ТЕСТ: SEQUENCE OF TENSES (Согласование времён) ====================
 
-    // ==================== ТЕСТ: PARTICIPLE (Причастие) – III семестр ====================
+    // ==================== ТЕСТ: INFINITIVE (Инфинитив) ====================
 
-    private fun uploadParticipleTest() {
+
+    // ==================== ТЕСТ: СЛУЖЕБНЫЕ ЧАСТИ РЕЧИ (С ПОДЧАСТЯМИ) ====================
+
+    private fun uploadFunctionalPartsTest() {
         coroutineScope.launch {
             try {
                 val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Participle (Причастие)")
-                    .setMessage("Загружаем тест с 30 вопросами...\nЭто может занять несколько секунд")
+                    .setTitle("Загрузка теста Служебные части речи")
+                    .setMessage("Загружаем тест с 2 частями (Предлог и Союз)...\nЭто может занять несколько секунд")
+                    .setCancelable(false)
+                    .create()
+                progressDialog.show()
+
+                // 1. Создаём документ теста (hasParts = true)
+                val testData = hashMapOf<String, Any>(
+                    "title" to "Служебные части речи",
+                    "num" to 14,  // номер теста (можно изменить)
+                    "semester" to 4,  // IV семестр
+                    "totalScore" to 52,  // 42 (предлог) + 10 (союз)
+                    "hasParts" to true
+                )
+
+                val testDocRef = db.collection("tests").document()
+                val testId = testDocRef.id
+                testDocRef.set(testData).await()
+
+                // ========== ЧАСТЬ 1: ПРЕДЛОГ (42 вопроса) ==========
+                val part1Data = hashMapOf<String, Any>(
+                    "title" to "Предлог",
+                    "num" to 1,
+                    "enterAnswer" to false,
+                    "lecId" to "not"
+                )
+
+                val part1DocRef = db.collection("tests")
+                    .document(testId)
+                    .collection("parts")
+                    .document()
+                val part1Id = part1DocRef.id
+                part1DocRef.set(part1Data).await()
+
+                // Добавляем вопросы для части 1 (Предлог)
+                val prepositionQuestions = getPrepositionQuestions()
+                for (question in prepositionQuestions) {
+                    db.collection("tests")
+                        .document(testId)
+                        .collection("parts")
+                        .document(part1Id)
+                        .collection("questions")
+                        .document(question["id"] as String)
+                        .set(question)
+                        .await()
+                }
+
+                // ========== ЧАСТЬ 2: СОЮЗ (10 вопросов) ==========
+                val part2Data = hashMapOf<String, Any>(
+                    "title" to "Союз",
+                    "num" to 2,
+                    "enterAnswer" to false,
+                    "lecId" to "not"
+                )
+
+                val part2DocRef = db.collection("tests")
+                    .document(testId)
+                    .collection("parts")
+                    .document()
+                val part2Id = part2DocRef.id
+                part2DocRef.set(part2Data).await()
+
+                // Добавляем вопросы для части 2 (Союз)
+                val conjunctionQuestions = getConjunctionQuestions()
+                for (question in conjunctionQuestions) {
+                    db.collection("tests")
+                        .document(testId)
+                        .collection("parts")
+                        .document(part2Id)
+                        .collection("questions")
+                        .document(question["id"] as String)
+                        .set(question)
+                        .await()
+                }
+
+                progressDialog.dismiss()
+
+                Toast.makeText(
+                    this@RoleSelectionActivity,
+                    "✅ Тест 'Служебные части речи' успешно загружен!\n\n" +
+                            "Test ID: $testId\n" +
+                            "Часть 1 (Предлог): $part1Id - 42 вопроса\n" +
+                            "Часть 2 (Союз): $part2Id - 10 вопросов\n" +
+                            "Всего вопросов: 52",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                Log.d("UploadTest", "Functional Parts test uploaded successfully. TestID: $testId")
+
+            } catch (e: Exception) {
+                AlertDialog.Builder(this@RoleSelectionActivity)
+                    .setTitle("Ошибка загрузки теста")
+                    .setMessage("Произошла ошибка:\n${e.message}")
+                    .setPositiveButton("OK", null)
+                    .show()
+                e.printStackTrace()
+            }
+        }
+    }
+
+// ==================== ВСЕ ВОПРОСЫ ДЛЯ ЧАСТИ 1: ПРЕДЛОГ (42 вопроса) ====================
+
+    private fun getPrepositionQuestions(): List<Map<String, Any>> {
+        return listOf(
+            // ========== Упражнение 1 (6 вопросов) ==========
+            mapOf("id" to "q1", "text" to "1. Выберите правильный вариант:\n\n1. She blamed him … the murder.",
+                "answers" to listOf(
+                    mapOf("text" to "a) for", "isCorrect" to true),
+                    mapOf("text" to "b) to", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q2", "text" to "1. Выберите правильный вариант:\n\n2. They arrived … London at 7:30.",
+                "answers" to listOf(
+                    mapOf("text" to "a) at", "isCorrect" to false),
+                    mapOf("text" to "b) in", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q3", "text" to "1. Выберите правильный вариант:\n\n3. I must apologise … Mary … the delay.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to; in", "isCorrect" to false),
+                    mapOf("text" to "b) to; for", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q4", "text" to "1. Выберите правильный вариант:\n\n4. I am very annoyed … John … being so careless.",
+                "answers" to listOf(
+                    mapOf("text" to "a) with; for", "isCorrect" to true),
+                    mapOf("text" to "b) to; about", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q5", "text" to "1. Выберите правильный вариант:\n\n5. He was accused … being a thief.",
+                "answers" to listOf(
+                    mapOf("text" to "a) of", "isCorrect" to true),
+                    mapOf("text" to "b) for", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q6", "text" to "1. Выберите правильный вариант:\n\n6. He believes … God.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to", "isCorrect" to false),
+                    mapOf("text" to "b) in", "isCorrect" to true)
+                )),
+
+            // ========== Упражнение 2 (4 вопроса) ==========
+            mapOf("id" to "q7", "text" to "2. Выберите правильный вариант:\n\n1. Everybody congratulated him … passing his exams.",
+                "answers" to listOf(
+                    mapOf("text" to "a) on", "isCorrect" to true),
+                    mapOf("text" to "b) of", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q8", "text" to "2. Выберите правильный вариант:\n\n2. The police have charged him … murder.",
+                "answers" to listOf(
+                    mapOf("text" to "a) with", "isCorrect" to true),
+                    mapOf("text" to "b) of", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q9", "text" to "2. Выберите правильный вариант:\n\n3. What time will you have finished painting your room? I will have finished … 7 o'clock, I hope.",
+                "answers" to listOf(
+                    mapOf("text" to "a) by", "isCorrect" to true),
+                    mapOf("text" to "b) until", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q10", "text" to "2. Выберите правильный вариант:\n\n4. Are you seeing Julie tonight? No, I will have left … the time she gets here.",
+                "answers" to listOf(
+                    mapOf("text" to "a) by", "isCorrect" to true),
+                    mapOf("text" to "b) until", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 3 (8 вопросов) ==========
+            mapOf("id" to "q11", "text" to "3. Выберите правильный вариант:\n\n1. Her family couldn't decide … the best place to go for their summer holidays.",
+                "answers" to listOf(
+                    mapOf("text" to "a) on", "isCorrect" to true),
+                    mapOf("text" to "b) at", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q12", "text" to "3. Выберите правильный вариант:\n\n2. The mountain-climbers died … extreme cold.",
+                "answers" to listOf(
+                    mapOf("text" to "a) of", "isCorrect" to true),
+                    mapOf("text" to "b) in", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q13", "text" to "3. Выберите правильный вариант:\n\n3. Sally dreams … being a famous actress.",
+                "answers" to listOf(
+                    mapOf("text" to "a) about", "isCorrect" to false),
+                    mapOf("text" to "b) of", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q14", "text" to "3. Выберите правильный вариант:\n\n4. What's the difference… a rabbit and a hare?",
+                "answers" to listOf(
+                    mapOf("text" to "a) between", "isCorrect" to true),
+                    mapOf("text" to "b) for", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q15", "text" to "3. Выберите правильный вариант:\n\n5. Sam was so disappointed … his birthday present that he burst into tears.",
+                "answers" to listOf(
+                    mapOf("text" to "a) with", "isCorrect" to true),
+                    mapOf("text" to "b) to", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q16", "text" to "3. Выберите правильный вариант:\n\n6. The demand … new cars is low because they are so expensive.",
+                "answers" to listOf(
+                    mapOf("text" to "a) of", "isCorrect" to false),
+                    mapOf("text" to "b) for", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q17", "text" to "3. Выберите правильный вариант:\n\n7. Linda couldn't deal … all the typing, so she hired an assistant to help her.",
+                "answers" to listOf(
+                    mapOf("text" to "a) with", "isCorrect" to true),
+                    mapOf("text" to "b) at", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q18", "text" to "3. Выберите правильный вариант:\n\n8. Now that he has a good job, Paul doesn't depend … his parents for money.",
+                "answers" to listOf(
+                    mapOf("text" to "a) on", "isCorrect" to true),
+                    mapOf("text" to "b) with", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 4 (4 вопроса) ==========
+            mapOf("id" to "q19", "text" to "4. Выберите правильный вариант:\n\n1. A footballer's life starts … the weekend.",
+                "answers" to listOf(
+                    mapOf("text" to "a) at", "isCorrect" to true),
+                    mapOf("text" to "b) in", "isCorrect" to false),
+                    mapOf("text" to "c) on", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q20", "text" to "4. Выберите правильный вариант:\n\n2. Most people go out … Friday night, but I have to be in bed at 10 o'clock.",
+                "answers" to listOf(
+                    mapOf("text" to "a) in", "isCorrect" to false),
+                    mapOf("text" to "b) at", "isCorrect" to false),
+                    mapOf("text" to "c) on", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q21", "text" to "4. Выберите правильный вариант:\n\n3. I go to school every day … 9 o'clock.",
+                "answers" to listOf(
+                    mapOf("text" to "a) at", "isCorrect" to true),
+                    mapOf("text" to "b) in", "isCorrect" to false),
+                    mapOf("text" to "c) on", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q22", "text" to "4. Выберите правильный вариант:\n\n4. Lessons start at 9.15 am … Mondays and Tuesdays.",
+                "answers" to listOf(
+                    mapOf("text" to "a) at", "isCorrect" to false),
+                    mapOf("text" to "b) on", "isCorrect" to true),
+                    mapOf("text" to "c) in", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 5 (8 вопросов) ==========
+            mapOf("id" to "q23", "text" to "5. Выберите правильный вариант:\n\n1. John Barnes has been in the police force … 1980.",
+                "answers" to listOf(
+                    mapOf("text" to "a) for", "isCorrect" to false),
+                    mapOf("text" to "b) since", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q24", "text" to "5. Выберите правильный вариант:\n\n2. Before that he worked in a supermarket … two years, but he found it very boring.",
+                "answers" to listOf(
+                    mapOf("text" to "a) for", "isCorrect" to true),
+                    mapOf("text" to "b) since", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q25", "text" to "5. Выберите правильный вариант:\n\n3. I met my penfriend, Bid, four days ...",
+                "answers" to listOf(
+                    mapOf("text" to "a) ago", "isCorrect" to true),
+                    mapOf("text" to "b) before", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q26", "text" to "5. Выберите правильный вариант:\n\n4. I had never met him …",
+                "answers" to listOf(
+                    mapOf("text" to "a) before", "isCorrect" to true),
+                    mapOf("text" to "b) ago", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q27", "text" to "5. Выберите правильный вариант:\n\n5. We went to a few tropical islands … the summer holiday last year.",
+                "answers" to listOf(
+                    mapOf("text" to "a) during", "isCorrect" to true),
+                    mapOf("text" to "b) while", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q28", "text" to "5. Выберите правильный вариант:\n\n6. My parents spent most of their time in the hotel … I was sunbathing on the beach.",
+                "answers" to listOf(
+                    mapOf("text" to "a) while", "isCorrect" to true),
+                    mapOf("text" to "b) during", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q29", "text" to "5. Выберите правильный вариант:\n\n7. Mr. Savage was driving very fast last night because he wanted to be home … for the late film.",
+                "answers" to listOf(
+                    mapOf("text" to "a) in time", "isCorrect" to true),
+                    mapOf("text" to "b) on time", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q30", "text" to "5. Выберите правильный вариант:\n\n8. He knew it probably wouldn't start … but he didn't want to take any chances.",
+                "answers" to listOf(
+                    mapOf("text" to "a) on time", "isCorrect" to false),
+                    mapOf("text" to "b) in time", "isCorrect" to true)
+                )),
+
+            // ========== Упражнение 6 (6 вопросов) ==========
+            mapOf("id" to "q31", "text" to "6. Выберите правильный вариант:\n\n1. When I went out last Saturday I told my father I'd be back ... 7 o'clock at the latest.",
+                "answers" to listOf(
+                    mapOf("text" to "a) by", "isCorrect" to true),
+                    mapOf("text" to "b) at", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q32", "text" to "6. Выберите правильный вариант:\n\n2. However, I was having such a good time that I didn't even look at my watch … 2:30!",
+                "answers" to listOf(
+                    mapOf("text" to "a) at", "isCorrect" to false),
+                    mapOf("text" to "b) till", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q33", "text" to "6. Выберите правильный вариант:\n\n3. My father was furious and told me I'd have to be home at 7 o'clock every night of the week … the end of the month!",
+                "answers" to listOf(
+                    mapOf("text" to "a) by", "isCorrect" to false),
+                    mapOf("text" to "b) till", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q34", "text" to "6. Выберите правильный вариант:\n\n4. I'm in trouble with my history teacher. He gave us a project to finish ... a week, and I haven't even started it yet.",
+                "answers" to listOf(
+                    mapOf("text" to "a) after", "isCorrect" to false),
+                    mapOf("text" to "b) within", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q35", "text" to "6. Выберите правильный вариант:\n\n5. I was going to do it … dinner on Thursday, but my friend phoned and invited me out to the cinema.",
+                "answers" to listOf(
+                    mapOf("text" to "a) afterwards", "isCorrect" to false),
+                    mapOf("text" to "b) after", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q36", "text" to "6. Выберите правильный вариант:\n\n6. We stayed at the party … 11 o'clock … 3.00 in the morning.",
+                "answers" to listOf(
+                    mapOf("text" to "a) from … till", "isCorrect" to true),
+                    mapOf("text" to "b) till … from", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 7 (6 вопросов - фразовые глаголы) ==========
+            mapOf("id" to "q37", "text" to "7. Выберите правильный вариант употребления предлога или наречия:\n\n1. My car broke … on the motorway and I had to walk to a garage.",
+                "answers" to listOf(
+                    mapOf("text" to "a) into", "isCorrect" to false),
+                    mapOf("text" to "b) down", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q38", "text" to "7. Выберите правильный вариант:\n\n2. The robber broke … the house by smashing a window.",
+                "answers" to listOf(
+                    mapOf("text" to "a) into", "isCorrect" to true),
+                    mapOf("text" to "b) down", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q39", "text" to "7. Выберите правильный вариант:\n\n3. As both her parents had died, she was brought … by her grandparents.",
+                "answers" to listOf(
+                    mapOf("text" to "a) up", "isCorrect" to true),
+                    mapOf("text" to "b) round", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q40", "text" to "7. Выберите правильный вариант:\n\n4. The police held … the fans who were trying to get into the football pitch.",
+                "answers" to listOf(
+                    mapOf("text" to "a) back", "isCorrect" to true),
+                    mapOf("text" to "b) on", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q41", "text" to "7. Выберите правильный вариант:\n\n5. They carried … a survey to find out which TV channel was the most popular.",
+                "answers" to listOf(
+                    mapOf("text" to "a) with", "isCorrect" to false),
+                    mapOf("text" to "b) out", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q42", "text" to "7. Выберите правильный вариант:\n\n6. Could you hold … please? Mrs. Jones' line is engaged at the moment.",
+                "answers" to listOf(
+                    mapOf("text" to "a) on", "isCorrect" to true),
+                    mapOf("text" to "b) up", "isCorrect" to false)
+                ))
+        )
+    }
+
+// ==================== ВСЕ ВОПРОСЫ ДЛЯ ЧАСТИ 2: СОЮЗ (10 вопросов) ====================
+
+    private fun getConjunctionQuestions(): List<Map<String, Any>> {
+        return listOf(
+            mapOf("id" to "c1", "text" to "1. Выберите правильный вариант:\n\n1. He arrived at the office before the others … he could start work early.",
+                "answers" to listOf(
+                    mapOf("text" to "a) so that", "isCorrect" to true),
+                    mapOf("text" to "b) in case", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "c2", "text" to "1. Выберите правильный вариант:\n\n2. These tools are mending my car.",
+                "answers" to listOf(
+                    mapOf("text" to "a) for", "isCorrect" to true),
+                    mapOf("text" to "b) to", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "c3", "text" to "1. Выберите правильный вариант:\n\n3. She went shopping … to be short of food.",
+                "answers" to listOf(
+                    mapOf("text" to "a) not to", "isCorrect" to false),
+                    mapOf("text" to "b) so as not", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "c4", "text" to "1. Выберите правильный вариант:\n\n4. I'll give you my phone number … you need any information.",
+                "answers" to listOf(
+                    mapOf("text" to "a) in case", "isCorrect" to true),
+                    mapOf("text" to "b) in order that", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "c5", "text" to "1. Выберите правильный вариант:\n\n5. She worked hard … she could go to university.",
+                "answers" to listOf(
+                    mapOf("text" to "a) so that", "isCorrect" to true),
+                    mapOf("text" to "b) for", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "c6", "text" to "1. Выберите правильный вариант:\n\n6. She is saving money … she can go on holiday.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to", "isCorrect" to false),
+                    mapOf("text" to "b) so that", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "c7", "text" to "1. Выберите правильный вариант:\n\n7. … the traffic, we made it to school on time.",
+                "answers" to listOf(
+                    mapOf("text" to "a) despite", "isCorrect" to true),
+                    mapOf("text" to "b) although", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "c8", "text" to "1. Выберите правильный вариант:\n\n8. … the fact that I didn't study, I passed the exam.",
+                "answers" to listOf(
+                    mapOf("text" to "a) although", "isCorrect" to false),
+                    mapOf("text" to "b) in spite of", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "c9", "text" to "1. Выберите правильный вариант:\n\n9. I can't stand classical music, … my mother loves it.",
+                "answers" to listOf(
+                    mapOf("text" to "a) in spite of", "isCorrect" to false),
+                    mapOf("text" to "b) whereas", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "c10", "text" to "1. Выберите правильный вариант:\n\n10. Tom loves playing football, … Paul prefers basketball.",
+                "answers" to listOf(
+                    mapOf("text" to "a) despite", "isCorrect" to false),
+                    mapOf("text" to "b) while", "isCorrect" to true)
+                ))
+        )
+    }
+
+
+    private fun uploadInfinitiveTest() {
+        coroutineScope.launch {
+            try {
+                val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
+                    .setTitle("Загрузка теста Infinitive")
+                    .setMessage("Загружаем тест с 42 вопросами...\nЭто может занять несколько секунд")
                     .setCancelable(false)
                     .create()
                 progressDialog.show()
 
                 // 1. Создаём документ теста
                 val testData = hashMapOf<String, Any>(
-                    "title" to "Participle (Причастие)",
-                    "num" to 15,
-                    "semester" to 3,
-                    "totalScore" to 30,
+                    "title" to "Infinitive (Инфинитив)",
+                    "num" to 13,  // номер теста (можно изменить)
+                    "semester" to 4,  // IV семестр
+                    "totalScore" to 42,
                     "hasParts" to false
                 )
 
@@ -90,8 +533,8 @@ class RoleSelectionActivity : AppCompatActivity() {
                 val partId = partDocRef.id
                 partDocRef.set(partData).await()
 
-                // 3. Добавляем все 30 вопросов
-                val questions = getParticipleQuestions()
+                // 3. Добавляем все 42 вопроса
+                val questions = getInfinitiveQuestions()
                 for (question in questions) {
                     db.collection("tests")
                         .document(testId)
@@ -107,17 +550,16 @@ class RoleSelectionActivity : AppCompatActivity() {
 
                 Toast.makeText(
                     this@RoleSelectionActivity,
-                    "✅ Тест 'Participle (Причастие)' успешно загружен!\n\n" +
+                    "✅ Тест 'Infinitive (Инфинитив)' успешно загружен!\n\n" +
                             "Test ID: $testId\n" +
                             "Part ID: $partId\n" +
-                            "Вопросов: 30",
+                            "Вопросов: 42",
                     Toast.LENGTH_LONG
                 ).show()
 
-                Log.d("UploadTest", "Participle test uploaded successfully. TestID: $testId")
+                Log.d("UploadTest", "Infinitive test uploaded successfully. TestID: $testId")
 
             } catch (e: Exception) {
-                //progressDialog.dismiss()
                 AlertDialog.Builder(this@RoleSelectionActivity)
                     .setTitle("Ошибка загрузки теста")
                     .setMessage("Произошла ошибка:\n${e.message}")
@@ -128,903 +570,312 @@ class RoleSelectionActivity : AppCompatActivity() {
         }
     }
 
-// ==================== ВСЕ 30 ВОПРОСОВ ====================
+// ==================== ВСЕ 42 ВОПРОСА ПО ТЕМЕ INFINITIVE ====================
 
-    private fun getParticipleQuestions(): List<Map<String, Any>> {
+    private fun getInfinitiveQuestions(): List<Map<String, Any>> {
         return listOf(
-
-            // Блок 1 – Выберите правильный вариант (12 вопросов)
-            mapOf("id" to "q1", "text" to "1. Выберите правильный вариант:\n1. … (wait) in the hall, he thought over the problem he was planning to discuss with the old lady.",
+            // ========== Упражнение 1 – Выберите правильный вариант (8 вопросов) ==========
+            mapOf("id" to "q1", "text" to "1. Выберите правильный вариант:\n\n1. He expected … (help) by his friends.",
                 "answers" to listOf(
-                    mapOf("text" to "a) waiting", "isCorrect" to true),
-                    mapOf("text" to "b) be waiting", "isCorrect" to false),
-                    mapOf("text" to "c) having waited", "isCorrect" to false)
-                )),
-            mapOf("id" to "q2", "text" to "1. Выберите правильный вариант:\n2. … (write) in very bad handwriting, the letter was difficult to read.",
-                "answers" to listOf(
-                    mapOf("text" to "a) being written", "isCorrect" to true),
-                    mapOf("text" to "b) writing", "isCorrect" to false),
-                    mapOf("text" to "c) having been written", "isCorrect" to false)
-                )),
-            mapOf("id" to "q3", "text" to "1. Выберите правильный вариант:\n3. … (spend) twenty years abroad, he was happy to be coming home.",
-                "answers" to listOf(
-                    mapOf("text" to "a) spending", "isCorrect" to false),
-                    mapOf("text" to "b) having spent", "isCorrect" to true),
-                    mapOf("text" to "c) being spent", "isCorrect" to false)
-                )),
-            mapOf("id" to "q4", "text" to "1. Выберите правильный вариант:\n4. … (not wish) to discuss the problem, he changed the conversation.",
-                "answers" to listOf(
-                    mapOf("text" to "a) having not wished", "isCorrect" to false),
-                    mapOf("text" to "b) wishing not", "isCorrect" to false),
-                    mapOf("text" to "c) not wishing", "isCorrect" to true)
-                )),
-            mapOf("id" to "q5", "text" to "1. Выберите правильный вариант:\n5. …(reject) by the publisher, the story was returned to the author.",
-                "answers" to listOf(
-                    mapOf("text" to "a) rejecting", "isCorrect" to false),
-                    mapOf("text" to "b) being rejected", "isCorrect" to true),
-                    mapOf("text" to "c) having been rejected", "isCorrect" to false)
-                )),
-            mapOf("id" to "q6", "text" to "1. Выберите правильный вариант:\n6. … (reject) by publishers several times, the story was accepted by a weekly magazine.",
-                "answers" to listOf(
-                    mapOf("text" to "a) rejecting", "isCorrect" to false),
-                    mapOf("text" to "b) being rejected", "isCorrect" to false),
-                    mapOf("text" to "c) having been rejected", "isCorrect" to true)
-                )),
-            mapOf("id" to "q7", "text" to "1. Выберите правильный вариант:\n7. They reached the peak at dusk, … (leave) their camp with the first light.",
-                "answers" to listOf(
-                    mapOf("text" to "a) leaving", "isCorrect" to true),
-                    mapOf("text" to "b) having left", "isCorrect" to false),
-                    mapOf("text" to "c) left", "isCorrect" to false)
-                )),
-            mapOf("id" to "q8", "text" to "1. Выберите правильный вариант:\n8. The friends went out into the city … (leave) their cases at the left-luggage department.",
-                "answers" to listOf(
-                    mapOf("text" to "a) leaving", "isCorrect" to false),
-                    mapOf("text" to "b) having left", "isCorrect" to true),
-                    mapOf("text" to "c) left", "isCorrect" to false)
-                )),
-            mapOf("id" to "q9", "text" to "1. Выберите правильный вариант:\n9. … (be) away so long he was happy to be coming back.",
-                "answers" to listOf(
-                    mapOf("text" to "a) being been", "isCorrect" to false),
-                    mapOf("text" to "b) being", "isCorrect" to true),
-                    mapOf("text" to "c) having been away", "isCorrect" to false)
-                )),
-            mapOf("id" to "q10", "text" to "1. Выберите правильный вариант:\n10. I cannot forget the story ... by him. They listened breathlessly to the story ... by the old man. (tell).",
-                "answers" to listOf(
-                    mapOf("text" to "a) told, being told", "isCorrect" to true),
-                    mapOf("text" to "b) being told, told", "isCorrect" to false),
-                    mapOf("text" to "c) being told, being told", "isCorrect" to false)
-                )),
-            mapOf("id" to "q11", "text" to "1. Выберите правильный вариант:\n11. One can't fail to notice the progress ... by our group during the last term. These are only a few of the attempts now ... to improve the methods of teaching adult students, (make).",
-                "answers" to listOf(
-                    mapOf("text" to "a) made, made", "isCorrect" to false),
-                    mapOf("text" to "b) made, being made", "isCorrect" to true),
-                    mapOf("text" to "c) having been made, being made", "isCorrect" to false)
-                )),
-            mapOf("id" to "q12", "text" to "1. Выберите правильный вариант:\n12. We could hear the noise of furniture ... upstairs. For a moment they sat silent ... by the story, (move).",
-                "answers" to listOf(
-                    mapOf("text" to "a) being moved, being moved", "isCorrect" to false),
-                    mapOf("text" to "b) moved, moved", "isCorrect" to false),
-                    mapOf("text" to "c) being moved, moved", "isCorrect" to true)
+                    mapOf("text" to "a) to help", "isCorrect" to false),
+                    mapOf("text" to "b) to be helped", "isCorrect" to true),
+                    mapOf("text" to "c) help", "isCorrect" to false)
                 )),
 
-            // Блок 2 – Выберите правильный вариант перевода (4 вопроса)
-            mapOf("id" to "q13", "text" to "2. Выберите правильный вариант перевода слов в скобках:\n1. We came up to the man … (стоявшему на углу) and asked him the way. The man (стоящий у окна) was our teacher last year.",
+            mapOf("id" to "q2", "text" to "1. Выберите правильный вариант:\n\n2. Perhaps it would upset her … (tell) the truth of the matter.",
                 "answers" to listOf(
-                    mapOf("text" to "a) standing, standing", "isCorrect" to true),
-                    mapOf("text" to "b) having stood, stood", "isCorrect" to false),
-                    mapOf("text" to "c) stood, standing", "isCorrect" to false)
-                )),
-            mapOf("id" to "q14", "text" to "2. Выберите правильный вариант перевода:\n2. … (Рассказав все, что он знал) the man left the room. Each time … (рассказывая об этом случае) she could not help crying.",
-                "answers" to listOf(
-                    mapOf("text" to "a) Having told all he knew, told about this accident", "isCorrect" to false),
-                    mapOf("text" to "b) Telling all he knew, telling about this accident", "isCorrect" to false),
-                    mapOf("text" to "c) Having told all he knew, telling about this accident", "isCorrect" to true)
-                )),
-            mapOf("id" to "q15", "text" to "2. Выберите правильный вариант перевода:\n3. … (Приехав в гостиницу) she found a telegram awaiting her. … (Приехав сюда) many years before he knew those parts perfectly.",
-                "answers" to listOf(
-                    mapOf("text" to "a) Having arrived to the hotel, Having come", "isCorrect" to false),
-                    mapOf("text" to "b) Arriving to the hotel, Came", "isCorrect" to false),
-                    mapOf("text" to "c) Arriving to the hotel, Having come", "isCorrect" to true)
-                )),
-            mapOf("id" to "q16", "text" to "2. Выберите правильный вариант перевода:\n4. The conference … (проходящая сейчас) in our city is devoted to problems of environment protection. Unable to attend the conference … (проходившую тогда) at the University, we asked to inform us about its decisions.",
-                "answers" to listOf(
-                    mapOf("text" to "a) being held, being held", "isCorrect" to true),
-                    mapOf("text" to "b) being held, having been held", "isCorrect" to false),
-                    mapOf("text" to "c) being held, hold", "isCorrect" to false)
+                    mapOf("text" to "a) to be told", "isCorrect" to true),
+                    mapOf("text" to "b) to tell", "isCorrect" to false),
+                    mapOf("text" to "c) to have told", "isCorrect" to false)
                 )),
 
-            // Блок 3 – Объектный падеж с причастием настоящего времени (4 вопроса)
-            mapOf("id" to "q17", "text" to "3. Выберите правильный перевод предложений с оборотом \"объектный падеж с причастием настоящего времени\":\n1. Я слышал, как он сказал ей об этом.",
+            mapOf("id" to "q3", "text" to "1. Выберите правильный вариант:\n\n3. I'd like him … (go) to a University but I can't make him … (go).",
                 "answers" to listOf(
-                    mapOf("text" to "a) I heard her tell him about it.", "isCorrect" to false),
-                    mapOf("text" to "b) I heard her telling him about it.", "isCorrect" to true),
-                    mapOf("text" to "c) I heard her having told him about it.", "isCorrect" to false),
-                    mapOf("text" to "d) I heard her to tell him about it.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q18", "text" to "3. Выберите правильный перевод:\n2. Я слышал, как она рассказывала ему об этом.",
-                "answers" to listOf(
-                    mapOf("text" to "a) I heard her tell him about it.", "isCorrect" to true),
-                    mapOf("text" to "b) I heard her telling him about it.", "isCorrect" to false),
-                    mapOf("text" to "c) I heard her having told him about it.", "isCorrect" to false),
-                    mapOf("text" to "d) I heard her to tell him about it.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q19", "text" to "3. Выберите правильный перевод:\n3. Я наблюдал, как они спускались с горы.",
-                "answers" to listOf(
-                    mapOf("text" to "a) I watched they were going down the mountain.", "isCorrect" to false),
-                    mapOf("text" to "b) I watched them going down the mountain.", "isCorrect" to true),
-                    mapOf("text" to "c) I watched them to be going down the mountain.", "isCorrect" to false),
-                    mapOf("text" to "d) I watched them to go down the mountain.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q20", "text" to "3. Выберите правильный перевод:\n4. Собака голодными глазами наблюдала, как ей несли косточку.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The dog was watching with hungry eyes a bone had been brought.", "isCorrect" to false),
-                    mapOf("text" to "b) The dog was watching with hungry eyes a bone having been brought.", "isCorrect" to false),
-                    mapOf("text" to "c) The dog was watching with hungry eyes a bone being brought.", "isCorrect" to true),
-                    mapOf("text" to "d) The dog was watching with hungry eyes a bone to be brought.", "isCorrect" to false)
+                    mapOf("text" to "a) go, go", "isCorrect" to false),
+                    mapOf("text" to "b) to go, to be gone", "isCorrect" to false),
+                    mapOf("text" to "c) to go, go", "isCorrect" to true)
                 )),
 
-            // Блок 4 – Объектный падеж с причастием прошедшего времени (4 вопроса)
-            mapOf("id" to "q21", "text" to "4. Выберите правильный перевод предложений с оборотом \"объектный падеж с причастием прошедшего времени\":\n1. Он хочет, чтобы документы были отосланы не позднее пятницы.",
+            mapOf("id" to "q4", "text" to "1. Выберите правильный вариант:\n\n4. Before he let us … (go) he made us … (promise) not to tell anybody what we had seen.",
                 "answers" to listOf(
-                    mapOf("text" to "a) He wants the documents being sent not later than Friday.", "isCorrect" to false),
-                    mapOf("text" to "b) He wants the documents sent not later than Friday.", "isCorrect" to true),
-                    mapOf("text" to "c) He wants to have the documents sent not later than Friday.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q22", "text" to "4. Выберите правильный перевод:\n2. Почему вы покрасили стены в такой темный цвет?",
-                "answers" to listOf(
-                    mapOf("text" to "a) Why have you had the walls of your room painted dark?", "isCorrect" to true),
-                    mapOf("text" to "b) Why did you have the walls of your room painted dark?", "isCorrect" to false),
-                    mapOf("text" to "c) Why have you the walls of your room having been painted dark?", "isCorrect" to false)
-                )),
-            mapOf("id" to "q23", "text" to "4. Выберите правильный перевод:\n3. Он отослал отчет вчера.",
-                "answers" to listOf(
-                    mapOf("text" to "a) He had the report sent yesterday.", "isCorrect" to true),
-                    mapOf("text" to "b) He had the report send yesterday.", "isCorrect" to false),
-                    mapOf("text" to "c) He had the report having been sent yesterday.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q24", "text" to "4. Выберите правильный перевод:\n4. Сейчас мне моют машину.",
-                "answers" to listOf(
-                    mapOf("text" to "a) They are washing my car.", "isCorrect" to false),
-                    mapOf("text" to "b) I have my car washed", "isCorrect" to false),
-                    mapOf("text" to "c) I have my car being washed", "isCorrect" to false),
-                    mapOf("text" to "d) I am having my car washed", "isCorrect" to true)
+                    mapOf("text" to "a) go, promise", "isCorrect" to true),
+                    mapOf("text" to "b) to go, promise", "isCorrect" to false),
+                    mapOf("text" to "c) go, to promise", "isCorrect" to false)
                 )),
 
-            // Блок 5 – Самостоятельный причастный оборот (4 вопроса)
-            mapOf("id" to "q25", "text" to "5. Выберите правильный перевод предложений с самостоятельным причастным оборотом:\n1. После того как мое задание было окончено, я лег спать.",
+            mapOf("id" to "q5", "text" to "1. Выберите правильный вариант:\n\n5. I hate … (bother) you, but the man is still waiting … (give) a definite answer.",
                 "answers" to listOf(
-                    mapOf("text" to "a) My task having been finished, I went to bed.", "isCorrect" to true),
-                    mapOf("text" to "b) My task being finished, I went to bed.", "isCorrect" to false),
-                    mapOf("text" to "c) Having finished my task, I went to bed.", "isCorrect" to false)
+                    mapOf("text" to "a) to bother, to give", "isCorrect" to false),
+                    mapOf("text" to "b) bother, be given", "isCorrect" to false),
+                    mapOf("text" to "c) to bother, to be given", "isCorrect" to true)
                 )),
-            mapOf("id" to "q26", "text" to "5. Выберите правильный перевод:\n2. Так как в комнате было темно, я не видел его.",
+
+            mapOf("id" to "q6", "text" to "1. Выберите правильный вариант:\n\n6. She would never miss a chance … (show) her efficiency, she was so anxious (like) and (praise).",
                 "answers" to listOf(
-                    mapOf("text" to "a) Being dark in the room, I couldn't see him.", "isCorrect" to false),
-                    mapOf("text" to "b) The room being dark, I couldn't see him.", "isCorrect" to true),
-                    mapOf("text" to "c) Being the dark room, I couldn't see him.", "isCorrect" to false)
+                    mapOf("text" to "a) to show, to like, to praise", "isCorrect" to false),
+                    mapOf("text" to "b) to show, to be liked, be praised", "isCorrect" to true),
+                    mapOf("text" to "c) to show, be liked, be praised", "isCorrect" to false)
                 )),
-            mapOf("id" to "q27", "text" to "5. Выберите правильный перевод:\n3. Так как было холодно, они развели костер.",
+
+            mapOf("id" to "q7", "text" to "1. Выберите правильный вариант:\n\n7. It seems … (rain) ever since we came here.",
                 "answers" to listOf(
-                    mapOf("text" to "a) Being very cold, they made a fire.", "isCorrect" to false),
-                    mapOf("text" to "b) It being very cold, they made a fire.", "isCorrect" to true),
-                    mapOf("text" to "c) It was very cold they made a fire.", "isCorrect" to false)
+                    mapOf("text" to "a) to have been raining", "isCorrect" to true),
+                    mapOf("text" to "b) to rain", "isCorrect" to false),
+                    mapOf("text" to "c) to be raining", "isCorrect" to false)
                 )),
-            mapOf("id" to "q28", "text" to "5. Выберите правильный перевод:\n4. Было темно, так как солнце зашло за час до этого.",
+
+            mapOf("id" to "q8", "text" to "1. Выберите правильный вариант:\n\n8. She was sorry … (be) out when I called and promised … (to wait) for me after the office hours.",
                 "answers" to listOf(
-                    mapOf("text" to "a) It was dark, the sun set an hour before.", "isCorrect" to false),
-                    mapOf("text" to "b) It was dark, because the sun had set an hour before.", "isCorrect" to false),
-                    mapOf("text" to "c) It was dark, the sun having set an hour before.", "isCorrect" to true)
+                    mapOf("text" to "a) to be, to wait", "isCorrect" to false),
+                    mapOf("text" to "b) to have been, to wait", "isCorrect" to true),
+                    mapOf("text" to "c) to have been, to be waiting", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 2 – Выберите правильный вариант (8 вопросов) ==========
+            mapOf("id" to "q9", "text" to "2. Выберите правильный вариант:\n\n1. It is high time for you ... (go) to bed.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to go", "isCorrect" to true),
+                    mapOf("text" to "b) go", "isCorrect" to false),
+                    mapOf("text" to "c) to have gone", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q10", "text" to "2. Выберите правильный вариант:\n\n2. They heard the girl ... (cry) out with joy.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to cry", "isCorrect" to false),
+                    mapOf("text" to "b) cry", "isCorrect" to true),
+                    mapOf("text" to "c) be crying", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q11", "text" to "2. Выберите правильный вариант:\n\n3. I would rather ... (stay) at home today.",
+                "answers" to listOf(
+                    mapOf("text" to "a) stay", "isCorrect" to true),
+                    mapOf("text" to "b) to stay", "isCorrect" to false),
+                    mapOf("text" to "c) be staying", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q12", "text" to "2. Выберите правильный вариант:\n\n4. You look tired. You had better ... (go) home.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to go", "isCorrect" to false),
+                    mapOf("text" to "b) have gone", "isCorrect" to false),
+                    mapOf("text" to "c) go", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q13", "text" to "2. Выберите правильный вариант:\n\n5. I think I shall be able ... (solve) this problem.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to solve", "isCorrect" to true),
+                    mapOf("text" to "b) solve", "isCorrect" to false),
+                    mapOf("text" to "c) to be solved", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q14", "text" to "2. Выберите правильный вариант:\n\n6. He would sooner... (die) than ... (betray) his friends.",
+                "answers" to listOf(
+                    mapOf("text" to "a) to die, betray", "isCorrect" to false),
+                    mapOf("text" to "b) die, betray", "isCorrect" to true),
+                    mapOf("text" to "c) to have died, have betrayed", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q15", "text" to "2. Выберите правильный вариант:\n\n7. You ought not... (speak) to the Dean like that.",
+                "answers" to listOf(
+                    mapOf("text" to "a) speak", "isCorrect" to false),
+                    mapOf("text" to "b) to speak", "isCorrect" to true),
+                    mapOf("text" to "c) have spoken", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q16", "text" to "2. Выберите правильный вариант:\n\n8. Get them ... (come) as early as possible.",
+                "answers" to listOf(
+                    mapOf("text" to "a) come", "isCorrect" to false),
+                    mapOf("text" to "b) be came", "isCorrect" to false),
+                    mapOf("text" to "c) to come", "isCorrect" to true)
+                )),
+
+            // ========== Упражнение 3 – Перевод с инфинитивом (6 вопросов) ==========
+            mapOf("id" to "q17", "text" to "3. Выберите правильный вариант перевода следующих предложений с инфинитивом, употребленным в различных функциях:\n\n1. Бесполезно обсуждать этот вопрос сейчас.",
+                "answers" to listOf(
+                    mapOf("text" to "a) It is useless discuss this question now.", "isCorrect" to false),
+                    mapOf("text" to "b) It is useless this question to be discussed now.", "isCorrect" to false),
+                    mapOf("text" to "c) It is useless to discuss this question now.", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q18", "text" to "3. Выберите правильный вариант перевода:\n\n2. Мне жаль, что я отнял у вас столько времени.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I'm sorry to have taken so much of your time.", "isCorrect" to true),
+                    mapOf("text" to "b) I'm sorry to take so much of your time.", "isCorrect" to false),
+                    mapOf("text" to "c) I'm sorry that I to have taken so much of your time.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q19", "text" to "3. Выберите правильный вариант перевода:\n\n3. Я попросил вас придти, чтобы сообщить вам об этом.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I asked you to come so as to inform you of it.", "isCorrect" to true),
+                    mapOf("text" to "b) I asked you to come in order inform you of it.", "isCorrect" to false),
+                    mapOf("text" to "c) I asked you to come and inform you of it.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q20", "text" to "3. Выберите правильный вариант перевода:\n\n4. Встреча, такая как эта, была шансом, который нельзя было упускать.",
+                "answers" to listOf(
+                    mapOf("text" to "a) A meeting such as this was a chance to be not missed.", "isCorrect" to false),
+                    mapOf("text" to "b) A meeting such as this was a chance to not miss.", "isCorrect" to false),
+                    mapOf("text" to "c) A meeting such as this was a chance not to be missed.", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q21", "text" to "3. Выберите правильный вариант перевода:\n\n5. Я возьму такси, чтобы не опоздать в аэропорт.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I will take a taxi not miss the flight.", "isCorrect" to false),
+                    mapOf("text" to "b) I will take a taxi not to miss the flight.", "isCorrect" to true),
+                    mapOf("text" to "c) I will take a taxi to not miss the flight.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q22", "text" to "3. Выберите правильный вариант перевода:\n\n6. Я слишком устал, чтобы идти в кино сегодня.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I am too tired in order to go to the cinema today.", "isCorrect" to false),
+                    mapOf("text" to "b) I am too tired for to going to the cinema today.", "isCorrect" to false),
+                    mapOf("text" to "c) I am too tired to go to the cinema today.", "isCorrect" to true)
+                )),
+
+            // ========== Упражнение 4 – Оборот "For + существительное + инфинитив" (4 вопроса) ==========
+            mapOf("id" to "q23", "text" to "4. Выберите правильный вариант перевода следующих предложений с оборотом 'For + существительное (местоимение) + инфинитив':\n\n1. Вам необходимо быть здесь завтра в 5 часов.",
+                "answers" to listOf(
+                    mapOf("text" to "a) It is necessary for you to be here at 5 o'clock tomorrow.", "isCorrect" to true),
+                    mapOf("text" to "b) It is necessary you be here at 5 o'clock tomorrow.", "isCorrect" to false),
+                    mapOf("text" to "c) It is necessary for you are here at 5 o'clock tomorrow.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q24", "text" to "4. Выберите правильный вариант перевода:\n\n2. Ему легко это сделать.",
+                "answers" to listOf(
+                    mapOf("text" to "a) It is easy for him to do it.", "isCorrect" to true),
+                    mapOf("text" to "b) It is easy he do it.", "isCorrect" to false),
+                    mapOf("text" to "c) It is easy for him do it.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q25", "text" to "4. Выберите правильный вариант перевода:\n\n3. Нам трудно сделать эту работу в такой короткий срок.",
+                "answers" to listOf(
+                    mapOf("text" to "a) It is difficult for we to do this work in such a short term.", "isCorrect" to false),
+                    mapOf("text" to "b) It is difficult for us to do this work in such a short term.", "isCorrect" to true),
+                    mapOf("text" to "c) It is difficult to for us do this work in such a short term.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q26", "text" to "4. Выберите правильный вариант перевода:\n\n4. Текст был не такой сложный, чтобы он не смог перевести его без словаря.",
+                "answers" to listOf(
+                    mapOf("text" to "a) The text was not so difficult for him to translate without a dictionary.", "isCorrect" to false),
+                    mapOf("text" to "b) The text was not so difficult for not him to translate without a dictionary.", "isCorrect" to false),
+                    mapOf("text" to "c) The text was not so difficult for him not to translate without a dictionary.", "isCorrect" to true)
+                )),
+
+            // ========== Упражнение 5 – Оборот "Объектный падеж с инфинитивом" (10 вопросов) ==========
+            mapOf("id" to "q27", "text" to "5. Выберите правильный вариант перевода следующих предложений с оборотом 'Объектный падеж с инфинитивом':\n\n1. Он хочет, чтобы мы пришли к нему сегодня.",
+                "answers" to listOf(
+                    mapOf("text" to "a) He wants us come to him today.", "isCorrect" to false),
+                    mapOf("text" to "b) He wants us to come to him today.", "isCorrect" to true),
+                    mapOf("text" to "c) He wants we to come to him today.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q28", "text" to "5. Выберите правильный вариант перевода:\n\n2. Хотите ли вы, чтобы я вам помог?",
+                "answers" to listOf(
+                    mapOf("text" to "a) Do you want I to help you?", "isCorrect" to false),
+                    mapOf("text" to "b) Do you want me to help you?", "isCorrect" to true),
+                    mapOf("text" to "c) Do you want me help to you?", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q29", "text" to "5. Выберите правильный вариант перевода:\n\n3. Она любит, чтобы ужин был вовремя.",
+                "answers" to listOf(
+                    mapOf("text" to "a) She likes that dinner to be in time.", "isCorrect" to false),
+                    mapOf("text" to "b) She likes that dinner be in time.", "isCorrect" to false),
+                    mapOf("text" to "c) She likes dinner to be in time.", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q30", "text" to "5. Выберите правильный вариант перевода:\n\n4. Я никогда не слышал, как он говорит по-французски.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I have never heard him speak French.", "isCorrect" to true),
+                    mapOf("text" to "b) I have never heard he to speak French.", "isCorrect" to false),
+                    mapOf("text" to "c) I have never heard him to have spoken French.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q31", "text" to "5. Выберите правильный вариант перевода:\n\n5. Она видела, что он вошел в дом и спустилась вниз, чтобы встретить его.",
+                "answers" to listOf(
+                    mapOf("text" to "a) She saw he come into the house and went downstairs to meet him.", "isCorrect" to false),
+                    mapOf("text" to "b) She saw him to come into the house and went downstairs to meet him.", "isCorrect" to false),
+                    mapOf("text" to "c) She saw him come into the house and went downstairs to meet him.", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q32", "text" to "5. Выберите правильный вариант перевода:\n\n6. Он заметил, что она очень бледна.",
+                "answers" to listOf(
+                    mapOf("text" to "a) He noticed that she was very pale.", "isCorrect" to true),
+                    mapOf("text" to "b) He noticed her to be very pale.", "isCorrect" to false),
+                    mapOf("text" to "c) He noticed her be very pale.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q33", "text" to "5. Выберите правильный вариант перевода:\n\n7. Никто не заметил, что она вышла из комнаты.",
+                "answers" to listOf(
+                    mapOf("text" to "a) Nobody noticed her to leave the room.", "isCorrect" to false),
+                    mapOf("text" to "b) Nobody noticed her leave the room.", "isCorrect" to true),
+                    mapOf("text" to "c) Nobody noticed she to leave the room.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q34", "text" to "5. Выберите правильный вариант перевода:\n\n8. Я знаю, что он очень опытный преподаватель.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I know he to be a very experienced teacher.", "isCorrect" to false),
+                    mapOf("text" to "b) I know him be a very experienced teacher.", "isCorrect" to false),
+                    mapOf("text" to "c) I know him to be a very experienced teacher.", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q35", "text" to "5. Выберите правильный вариант перевода:\n\n9. Я ожидал, что меня пригласят туда.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I expect to be invited there.", "isCorrect" to true),
+                    mapOf("text" to "b) I expect be invited there.", "isCorrect" to false),
+                    mapOf("text" to "c) I expect that I to be invited there.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q36", "text" to "5. Выберите правильный вариант перевода:\n\n10. Я считаю, что я прав.",
+                "answers" to listOf(
+                    mapOf("text" to "a) I consider I to be right.", "isCorrect" to false),
+                    mapOf("text" to "b) I consider myself to be right.", "isCorrect" to true),
+                    mapOf("text" to "c) I consider myself I be right.", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 6 – Оборот "Именительный падеж с инфинитивом" (6 вопросов) ==========
+            mapOf("id" to "q37", "text" to "6. Выберите правильный вариант перевода следующих предложений при помощи оборота 'Именительный падеж с инфинитивом':\n\n1. Известно, что он придерживается другого мнения по этому вопросу.",
+                "answers" to listOf(
+                    mapOf("text" to "a) He is known to have a different opinion on this question.", "isCorrect" to true),
+                    mapOf("text" to "b) It is known him to have a different opinion on this question.", "isCorrect" to false),
+                    mapOf("text" to "c) It is known he to have a different opinion on this question.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q38", "text" to "6. Выберите правильный вариант перевода:\n\n2. Суть эксперимента, который считают, оказался успешным, будет представлен на конференции.",
+                "answers" to listOf(
+                    mapOf("text" to "a) The idea of the experiment, which is believed to have proved to be successful, will be represented at the conference.", "isCorrect" to true),
+                    mapOf("text" to "b) The idea of the experiment, which is believed to be proved to be successful, will be represented at the conference.", "isCorrect" to false),
+                    mapOf("text" to "c) The idea of the experiment, which is believed to have been proved to be successful, will be represented at the conference.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q39", "text" to "6. Выберите правильный вариант перевода:\n\n3. Кажется, его провал ничуть его не расстроил.",
+                "answers" to listOf(
+                    mapOf("text" to "a) He does not seem to be discouraged by his failure.", "isCorrect" to false),
+                    mapOf("text" to "b) He does not seem has been discouraged by his failure.", "isCorrect" to false),
+                    mapOf("text" to "c) He does not seem to have been discouraged by his failure.", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q40", "text" to "6. Выберите правильный вариант перевода:\n\n4. Он не казался удивленным, услышав эти новости.",
+                "answers" to listOf(
+                    mapOf("text" to "a) He did not appear surprised at this news.", "isCorrect" to false),
+                    mapOf("text" to "b) He did not appear to be surprised at this news.", "isCorrect" to true),
+                    mapOf("text" to "c) He did not appear that he to be surprised at this news.", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q41", "text" to "6. Выберите правильный вариант перевода:\n\n5. Вероятно, они примут участие в этой работе.",
+                "answers" to listOf(
+                    mapOf("text" to "a) It is likely they are to take part in this work.", "isCorrect" to false),
+                    mapOf("text" to "b) They are likely will take part in this work.", "isCorrect" to false),
+                    mapOf("text" to "c) They are likely to take part in this work.", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q42", "text" to "6. Выберите правильный вариант перевода:\n\n6. Ему несомненно понравится на вечеринке.",
+                "answers" to listOf(
+                    mapOf("text" to "a) He is sure to enjoy himself at the party.", "isCorrect" to true),
+                    mapOf("text" to "b) He to be sure to enjoy himself at the party.", "isCorrect" to false),
+                    mapOf("text" to "c) He is sure to be enjoyed himself at the party.", "isCorrect" to false)
                 ))
         )
     }
 
-    /*
-    // ==================== ТЕСТ: NUMERALS (Числительные) – III семестр ====================
-
-    private fun uploadNumeralsTest() {
-        coroutineScope.launch {
-            try {
-                val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Numerals (Числительные)")
-                    .setMessage("Загружаем тест с 32 вопросами...\nЭто может занять несколько секунд")
-                    .setCancelable(false)
-                    .create()
-                progressDialog.show()
-
-                // 1. Создаём документ теста
-                val testData = hashMapOf<String, Any>(
-                    "title" to "Numerals (Числительные)",
-                    "num" to 14,
-                    "semester" to 3,
-                    "totalScore" to 32,
-                    "hasParts" to false
-                )
-
-                val testDocRef = db.collection("tests").document()
-                val testId = testDocRef.id
-                testDocRef.set(testData).await()
-
-                // 2. Создаём часть теста
-                val partData = hashMapOf<String, Any>(
-                    "title" to "Основная часть",
-                    "num" to 1,
-                    "enterAnswer" to false,
-                    "lecId" to "not"
-                )
-
-                val partDocRef = db.collection("tests")
-                    .document(testId)
-                    .collection("parts")
-                    .document()
-                val partId = partDocRef.id
-                partDocRef.set(partData).await()
-
-                // 3. Добавляем все 32 вопроса
-                val questions = getNumeralsQuestions()
-                for (question in questions) {
-                    db.collection("tests")
-                        .document(testId)
-                        .collection("parts")
-                        .document(partId)
-                        .collection("questions")
-                        .document(question["id"] as String)
-                        .set(question)
-                        .await()
-                }
-
-                progressDialog.dismiss()
-
-                Toast.makeText(
-                    this@RoleSelectionActivity,
-                    "✅ Тест 'Numerals (Числительные)' успешно загружен!\n\n" +
-                            "Test ID: $testId\n" +
-                            "Part ID: $partId\n" +
-                            "Вопросов: 32",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                Log.d("UploadTest", "Numerals test uploaded successfully. TestID: $testId")
-
-            } catch (e: Exception) {
-                //progressDialog.dismiss()
-                AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Ошибка загрузки теста")
-                    .setMessage("Произошла ошибка:\n${e.message}")
-                    .setPositiveButton("OK", null)
-                    .show()
-                e.printStackTrace()
-            }
-        }
-    }
-
-// ==================== ВСЕ 32 ВОПРОСА ====================
-
-    private fun getNumeralsQuestions(): List<Map<String, Any>> {
-        return listOf(
-
-            // Блок 1 – Количественные числительные (12 вопросов)
-            mapOf("id" to "q1", "text" to "1. Выберите правильный вариант написания количественных числительных:\n1. 14",
-                "answers" to listOf(
-                    mapOf("text" to "a) forteen", "isCorrect" to false),
-                    mapOf("text" to "b) forty", "isCorrect" to false),
-                    mapOf("text" to "c) fourteen", "isCorrect" to true),
-                    mapOf("text" to "d) fourtin", "isCorrect" to false)
-                )),
-            mapOf("id" to "q2", "text" to "1. Выберите правильный вариант:\n2. 12",
-                "answers" to listOf(
-                    mapOf("text" to "a) twelve", "isCorrect" to true),
-                    mapOf("text" to "b) twoteen", "isCorrect" to false),
-                    mapOf("text" to "c) twotin", "isCorrect" to false),
-                    mapOf("text" to "d) tvelwe", "isCorrect" to false)
-                )),
-            mapOf("id" to "q3", "text" to "1. Выберите правильный вариант:\n3. 30",
-                "answers" to listOf(
-                    mapOf("text" to "a) thity", "isCorrect" to false),
-                    mapOf("text" to "b) thirty", "isCorrect" to true),
-                    mapOf("text" to "c) therty", "isCorrect" to false),
-                    mapOf("text" to "d) thety", "isCorrect" to false)
-                )),
-            mapOf("id" to "q4", "text" to "1. Выберите правильный вариант:\n4. 93",
-                "answers" to listOf(
-                    mapOf("text" to "a) ninetee-three", "isCorrect" to false),
-                    mapOf("text" to "b) nainety-thry", "isCorrect" to false),
-                    mapOf("text" to "c) ninty-thrу", "isCorrect" to false),
-                    mapOf("text" to "d) ninety-three", "isCorrect" to true)
-                )),
-            mapOf("id" to "q5", "text" to "1. Выберите правильный вариант:\n5. 86",
-                "answers" to listOf(
-                    mapOf("text" to "a) eithy-sixs", "isCorrect" to false),
-                    mapOf("text" to "b) eighty-sixs", "isCorrect" to false),
-                    mapOf("text" to "c) eihty-six", "isCorrect" to false),
-                    mapOf("text" to "d) eighty-six", "isCorrect" to true)
-                )),
-            mapOf("id" to "q6", "text" to "1. Выберите правильный вариант:\n6. 100",
-                "answers" to listOf(
-                    mapOf("text" to "a) hundreed", "isCorrect" to false),
-                    mapOf("text" to "b) hundred", "isCorrect" to true),
-                    mapOf("text" to "c) handred", "isCorrect" to false),
-                    mapOf("text" to "d) handreed", "isCorrect" to false)
-                )),
-            mapOf("id" to "q7", "text" to "1. Выберите правильный вариант:\n7. 226",
-                "answers" to listOf(
-                    mapOf("text" to "a) two hundred twenty-six", "isCorrect" to true),
-                    mapOf("text" to "b) two hundreed twentysix", "isCorrect" to false),
-                    mapOf("text" to "c) two hundreds twentysix", "isCorrect" to false),
-                    mapOf("text" to "d) hundred two twenty-six", "isCorrect" to false)
-                )),
-            mapOf("id" to "q8", "text" to "1. Выберите правильный вариант:\n8. 705",
-                "answers" to listOf(
-                    mapOf("text" to "a) seventy hundred five", "isCorrect" to false),
-                    mapOf("text" to "b) seven hundred and five", "isCorrect" to true),
-                    mapOf("text" to "c) hundreds seven and five", "isCorrect" to false),
-                    mapOf("text" to "d) seven zero five", "isCorrect" to false)
-                )),
-            mapOf("id" to "q9", "text" to "1. Выберите правильный вариант:\n9. 1,008",
-                "answers" to listOf(
-                    mapOf("text" to "a) one thousend and eight", "isCorrect" to false),
-                    mapOf("text" to "b) one thosand and eiht", "isCorrect" to false),
-                    mapOf("text" to "c) one thousand double zero eiht", "isCorrect" to false),
-                    mapOf("text" to "d) one thousand and eight", "isCorrect" to true)
-                )),
-            mapOf("id" to "q10", "text" to "1. Выберите правильный вариант:\n10. 75,137",
-                "answers" to listOf(
-                    mapOf("text" to "a) one hundred thirty-seven and seventy-five thousand", "isCorrect" to false),
-                    mapOf("text" to "b) seventy-five thousand one hundred and thirty-seven", "isCorrect" to true),
-                    mapOf("text" to "c) seventy-five thosand one hundred and thity-seven", "isCorrect" to false),
-                    mapOf("text" to "d) seventy-five and thirty-seven hundred thousands", "isCorrect" to false)
-                )),
-            mapOf("id" to "q11", "text" to "1. Выберите правильный вариант:\n11. 425,712",
-                "answers" to listOf(
-                    mapOf("text" to "a) twenty-five thousand four hundred and seven hundred and twelve", "isCorrect" to false),
-                    mapOf("text" to "b) four hundred and twenty-five thousand twelve and seven hundred", "isCorrect" to false),
-                    mapOf("text" to "c) four hundred and twenty-five thousand seven hundred and twelve", "isCorrect" to true),
-                    mapOf("text" to "d) twenty-five thousand four hundred and twelve and seven hundred", "isCorrect" to false)
-                )),
-            mapOf("id" to "q12", "text" to "1. Выберите правильный вариант:\n12. 1,306,527",
-                "answers" to listOf(
-                    mapOf("text" to "a) five hundred twenty-seven thousand three hundred and six one million", "isCorrect" to false),
-                    mapOf("text" to "b) one million three hundred and six thousand five hundred and twenty-seven", "isCorrect" to true),
-                    mapOf("text" to "c) three hundred and six thousand one million five and twenty-seven hundred", "isCorrect" to false),
-                    mapOf("text" to "d) five hundred and twenty-seven one million three hundred and six thousand", "isCorrect" to false)
-                )),
-
-            // Блок 2 – Единицы измерения и множественное число (6 вопросов)
-            mapOf("id" to "q13", "text" to "2. Выберите правильный вариант:\n1. 50 килограммов",
-                "answers" to listOf(
-                    mapOf("text" to "a) fifty kilograms", "isCorrect" to true),
-                    mapOf("text" to "b) fifty kilogram", "isCorrect" to false)
-                )),
-            mapOf("id" to "q14", "text" to "2. Выберите правильный вариант:\n2. 300 автомобилей",
-                "answers" to listOf(
-                    mapOf("text" to "a) three hundreds automobiles", "isCorrect" to false),
-                    mapOf("text" to "b) three hundred automobiles", "isCorrect" to true)
-                )),
-            mapOf("id" to "q15", "text" to "2. Выберите правильный вариант:\n3. 21 грамм",
-                "answers" to listOf(
-                    mapOf("text" to "a) twenty-one grams", "isCorrect" to true),
-                    mapOf("text" to "b) twenty-one gram", "isCorrect" to false)
-                )),
-            mapOf("id" to "q16", "text" to "2. Выберите правильный вариант:\n4. 2,000,000 тонн",
-                "answers" to listOf(
-                    mapOf("text" to "a) two million tons", "isCorrect" to true),
-                    mapOf("text" to "b) two millions ton", "isCorrect" to false)
-                )),
-            mapOf("id" to "q17", "text" to "2. Выберите правильный вариант:\n5. Сотни машин",
-                "answers" to listOf(
-                    mapOf("text" to "a) hundred of machines", "isCorrect" to false),
-                    mapOf("text" to "b) hundreds of machines", "isCorrect" to true)
-                )),
-            mapOf("id" to "q18", "text" to "2. Выберите правильный вариант:\n6. 281 доллар",
-                "answers" to listOf(
-                    mapOf("text" to "a) two hundred and eighty-one dollars", "isCorrect" to true),
-                    mapOf("text" to "b) two hundreds and eighty-one dollars", "isCorrect" to false)
-                )),
-
-            // Блок 3 – Порядковые числительные (8 вопросов)
-            mapOf("id" to "q19", "text" to "3. Выберите правильный вариант написания порядковых числительных:\n1. 3th",
-                "answers" to listOf(
-                    mapOf("text" to "a) therd", "isCorrect" to false),
-                    mapOf("text" to "b) threeth", "isCorrect" to false),
-                    mapOf("text" to "c) third", "isCorrect" to true)
-                )),
-            mapOf("id" to "q20", "text" to "3. Выберите правильный вариант:\n2. 30th",
-                "answers" to listOf(
-                    mapOf("text" to "a) thirtith", "isCorrect" to false),
-                    mapOf("text" to "b) thirtieth", "isCorrect" to true),
-                    mapOf("text" to "c) thirteth", "isCorrect" to false)
-                )),
-            mapOf("id" to "q21", "text" to "3. Выберите правильный вариант:\n3. 19th",
-                "answers" to listOf(
-                    mapOf("text" to "a) nineteenth", "isCorrect" to true),
-                    mapOf("text" to "b) ninetienth", "isCorrect" to false),
-                    mapOf("text" to "c) ninetinth", "isCorrect" to false)
-                )),
-            mapOf("id" to "q22", "text" to "3. Выберите правильный вариант:\n4. 90th",
-                "answers" to listOf(
-                    mapOf("text" to "a) nineteth", "isCorrect" to false),
-                    mapOf("text" to "b) nineteeth", "isCorrect" to false),
-                    mapOf("text" to "c) ninetieth", "isCorrect" to true)
-                )),
-            mapOf("id" to "q23", "text" to "3. Выберите правильный вариант:\n5. 201th",
-                "answers" to listOf(
-                    mapOf("text" to "a) one and two hundreth", "isCorrect" to false),
-                    mapOf("text" to "b) one and second hundred", "isCorrect" to false),
-                    mapOf("text" to "c) two hundred and first", "isCorrect" to true)
-                )),
-            mapOf("id" to "q24", "text" to "3. Выберите правильный вариант:\n6. 300th",
-                "answers" to listOf(
-                    mapOf("text" to "a) three hundreth", "isCorrect" to false),
-                    mapOf("text" to "b) three hundredth", "isCorrect" to true),
-                    mapOf("text" to "c) three hundreeth", "isCorrect" to false)
-                )),
-            mapOf("id" to "q25", "text" to "3. Выберите правильный вариант:\n7. 1,000th",
-                "answers" to listOf(
-                    mapOf("text" to "a) thousandth", "isCorrect" to true),
-                    mapOf("text" to "b) first thousandth", "isCorrect" to false),
-                    mapOf("text" to "c) thousandth one", "isCorrect" to false)
-                )),
-            mapOf("id" to "q26", "text" to "3. Выберите правильный вариант:\n8. 1,015",
-                "answers" to listOf(
-                    mapOf("text" to "a) thousand and fiftienth", "isCorrect" to false),
-                    mapOf("text" to "b) fifteen thousandth", "isCorrect" to false),
-                    mapOf("text" to "c) thousand and fifteenth", "isCorrect" to true)
-                )),
-
-            // Блок 4 – Дробные числительные (6 вопросов)
-            mapOf("id" to "q27", "text" to "4. Выберите правильный вариант:\n1. 1/2 тонны",
-                "answers" to listOf(
-                    mapOf("text" to "a) three and five of tons", "isCorrect" to false),
-                    mapOf("text" to "b) three and five of a ton", "isCorrect" to false),
-                    mapOf("text" to "c) three fifth of a ton", "isCorrect" to true)
-                )),
-            mapOf("id" to "q28", "text" to "4. Выберите правильный вариант:\n2. 2/3 процента",
-                "answers" to listOf(
-                    mapOf("text" to "a) two third per cent", "isCorrect" to false),
-                    mapOf("text" to "b) two thirds per cents", "isCorrect" to false),
-                    mapOf("text" to "c) two and third of per cent", "isCorrect" to true)
-                )),
-            mapOf("id" to "q29", "text" to "4. Выберите правильный вариант:\n3. 1 1/2 часа",
-                "answers" to listOf(
-                    mapOf("text" to "a) one hour and a half", "isCorrect" to true),
-                    mapOf("text" to "b) one and a half hour", "isCorrect" to false),
-                    mapOf("text" to "c) one and one and two hour", "isCorrect" to false)
-                )),
-            mapOf("id" to "q30", "text" to "4. Выберите правильный вариант:\n4. 0,105 метра",
-                "answers" to listOf(
-                    mapOf("text" to "a) nought point one nought five of a metre", "isCorrect" to true),
-                    mapOf("text" to "b) nought point one hundred and five of a metre", "isCorrect" to false),
-                    mapOf("text" to "c) nought and one hundred and five of a metre", "isCorrect" to false)
-                )),
-            mapOf("id" to "q31", "text" to "4. Выберите правильный вариант:\n5. 2.5 процента",
-                "answers" to listOf(
-                    mapOf("text" to "a) two and five per cent", "isCorrect" to false),
-                    mapOf("text" to "b) two and five per cents", "isCorrect" to false),
-                    mapOf("text" to "c) two point five per cent", "isCorrect" to true)
-                )),
-            mapOf("id" to "q32", "text" to "4. Выберите правильный вариант:\n6. 17.562",
-                "answers" to listOf(
-                    mapOf("text" to "a) seventeen point five six two tons", "isCorrect" to false),
-                    mapOf("text" to "b) one seven point five six two tons", "isCorrect" to true),
-                    mapOf("text" to "c) seventeen point five hundred sixty-two tons", "isCorrect" to false)
-                ))
-        )
-    }*/
-
-    /*
-    // ==================== ТЕСТ: MOOD (Наклонение) – III семестр ====================
-
-    private fun uploadMoodTest() {
-        coroutineScope.launch {
-            try {
-                val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Mood (Наклонение)")
-                    .setMessage("Загружаем тест с 22 вопросами...\nЭто может занять несколько секунд")
-                    .setCancelable(false)
-                    .create()
-                progressDialog.show()
-
-                // 1. Создаём документ теста
-                val testData = hashMapOf<String, Any>(
-                    "title" to "Mood (Наклонение)",
-                    "num" to 13,
-                    "semester" to 3,
-                    "totalScore" to 22,
-                    "hasParts" to false
-                )
-
-                val testDocRef = db.collection("tests").document()
-                val testId = testDocRef.id
-                testDocRef.set(testData).await()
-
-                // 2. Создаём часть теста
-                val partData = hashMapOf<String, Any>(
-                    "title" to "Основная часть",
-                    "num" to 1,
-                    "enterAnswer" to false,
-                    "lecId" to "not"
-                )
-
-                val partDocRef = db.collection("tests")
-                    .document(testId)
-                    .collection("parts")
-                    .document()
-                val partId = partDocRef.id
-                partDocRef.set(partData).await()
-
-                // 3. Добавляем все 22 вопроса
-                val questions = getMoodQuestions()
-                for (question in questions) {
-                    db.collection("tests")
-                        .document(testId)
-                        .collection("parts")
-                        .document(partId)
-                        .collection("questions")
-                        .document(question["id"] as String)
-                        .set(question)
-                        .await()
-                }
-
-                progressDialog.dismiss()
-
-                Toast.makeText(
-                    this@RoleSelectionActivity,
-                    "✅ Тест 'Mood (Наклонение)' успешно загружен!\n\n" +
-                            "Test ID: $testId\n" +
-                            "Part ID: $partId\n" +
-                            "Вопросов: 22",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                Log.d("UploadTest", "Mood test uploaded successfully. TestID: $testId")
-
-            } catch (e: Exception) {
-                //progressDialog.dismiss()
-                AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Ошибка загрузки теста")
-                    .setMessage("Произошла ошибка:\n${e.message}")
-                    .setPositiveButton("OK", null)
-                    .show()
-                e.printStackTrace()
-            }
-        }
-    }
-
-// ==================== ВСЕ 22 ВОПРОСА ====================
-
-    private fun getMoodQuestions(): List<Map<String, Any>> {
-        return listOf(
-
-            // Блок 1 – Выберите правильный вариант (6 вопросов)
-            mapOf("id" to "q1", "text" to "1. Выберите правильный вариант:\n1. They … (go) to the beach if it … (be) warmer.",
-                "answers" to listOf(
-                    mapOf("text" to "a) They went to the beach if it would be warmer.", "isCorrect" to false),
-                    mapOf("text" to "b) They went to the beach if it were warmer.", "isCorrect" to false),
-                    mapOf("text" to "c) They would went to the beach if it were warmer.", "isCorrect" to false),
-                    mapOf("text" to "d) They would go to the beach if it were warmer.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q2", "text" to "1. Выберите правильный вариант:\n2. The dinner … (not be spoiled) if you … (not forget) the dish in the oven.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The dinner would have not be spoiled if you did not had forgotten the dish in the oven.", "isCorrect" to false),
-                    mapOf("text" to "b) The dinner would be not spoiled if you had not forgotten the dish in the oven.", "isCorrect" to false),
-                    mapOf("text" to "c) The dinner would not have been spoiled if you had not forgotten the dish in the oven.", "isCorrect" to true),
-                    mapOf("text" to "d) The dinner would not had been spoiled if you had not forgotten the dish in the oven.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q3", "text" to "1. Выберите правильный вариант:\n3. Even though he … (know) how difficult the situation was, he … (not stop) the preparations.",
-                "answers" to listOf(
-                    mapOf("text" to "a) Even though he would know how difficult the situation was, he would not stop the preparations.", "isCorrect" to false),
-                    mapOf("text" to "b) Even though he knew know how difficult the situation was, he would not stop the preparations.", "isCorrect" to false),
-                    mapOf("text" to "c) Even though he had known how difficult the situation was, he would not have stopped the preparations.", "isCorrect" to false),
-                    mapOf("text" to "d) Even though he had known how difficult the situation was, he would have not stopped the preparations.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q4", "text" to "1. Выберите правильный вариант:\n4. If you really … (want) to buy the house, you … (can do) it even now.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If you really want to buy the house, you could do it even now.", "isCorrect" to false),
-                    mapOf("text" to "b) If you really wanted to buy the house, you could do it even now.", "isCorrect" to true),
-                    mapOf("text" to "c) If you really wanted to buy the house, you would can do it even now.", "isCorrect" to false),
-                    mapOf("text" to "d) If you really wanted to buy the house, you could did it even now.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q5", "text" to "1. Выберите правильный вариант:\n5. Even if I … (have) a dictionary, I don't believe I … (be able) to write the test.",
-                "answers" to listOf(
-                    mapOf("text" to "a) Even if I had had a dictionary, I don't believe I would have been able to write the test.", "isCorrect" to true),
-                    mapOf("text" to "b) Even if I had a dictionary, I don't believe I would have been able to write the test.", "isCorrect" to false),
-                    mapOf("text" to "c) Even if I had a dictionary, I don't believe I would have been abled to write the test.", "isCorrect" to false),
-                    mapOf("text" to "d) Even if I had had a dictionary, I don't believe I would had been able to write the test.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q6", "text" to "1. Выберите правильный вариант:\n6. She … (know) how to behave if she … (be) a born lady.",
-                "answers" to listOf(
-                    mapOf("text" to "a) She would has known how to behave if she were a born lady.", "isCorrect" to false),
-                    mapOf("text" to "b) She would know how to behave if she is a born lady.", "isCorrect" to false),
-                    mapOf("text" to "c) She would knew how to behave if she were a born lady.", "isCorrect" to false),
-                    mapOf("text" to "d) She would have known how to behave if she were a born lady.", "isCorrect" to true)
-                )),
-
-            // Блок 2 – Выберите правильный вариант перевода (8 вопросов)
-            mapOf("id" to "q7", "text" to "2. Выберите правильный вариант перевода предложений в изъявительном наклонении в предложения нереального условия:\n1. She thought of her future and refused to marry the young man.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If she had thought of her future she would not have refused to marry the young man.", "isCorrect" to false),
-                    mapOf("text" to "b) If she had not thought of her future she would not have refused to marry the young man.", "isCorrect" to true),
-                    mapOf("text" to "c) If she would have thought of her future and she refused to marry the young man.", "isCorrect" to false),
-                    mapOf("text" to "d) If she did not think of her future she would have refused to marry the young man.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q8", "text" to "2. Выберите правильный вариант перевода:\n2. He was deep in his thoughts and did not notice the \"no parking\" sign.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If he had been deep in his thoughts he would not have notice the \"no parking\" sign.", "isCorrect" to false),
-                    mapOf("text" to "b) If he were not deep in his thoughts he would notice the \"no parking\" sign.", "isCorrect" to false),
-                    mapOf("text" to "c) If he had been not deep in his thoughts he would have notice the \"no parking\" sign.", "isCorrect" to false),
-                    mapOf("text" to "d) If he had not been deep in his thoughts he would have noticed the \"no parking\" sign.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q9", "text" to "2. Выберите правильный вариант перевода:\n3. There is no one to sit with the baby, I have to stay at home.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If there were anyone to sit with the baby I would not have to stay at home.", "isCorrect" to true),
-                    mapOf("text" to "b) If there were no one to sit with the baby I would have to stay at home.", "isCorrect" to false),
-                    mapOf("text" to "c) If there would be anyone to sit with the baby I don't have to stay at home.", "isCorrect" to false),
-                    mapOf("text" to "d) If there were anyone to sit with the baby I would not have had to stay at home.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q10", "text" to "2. Выберите правильный вариант перевода:\n4. She did not think of the consequences and agreed to forge the document.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If she thought of the consequences she would not agreed to forge the document.", "isCorrect" to false),
-                    mapOf("text" to "b) If she had thought of the consequences she would not have agreed to forge the document.", "isCorrect" to true),
-                    mapOf("text" to "c) If she had thought of the consequences she would not had agreed to forge the document.", "isCorrect" to false),
-                    mapOf("text" to "d) If she had thought of the consequences she would not agree to forge the document.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q11", "text" to "2. Выберите правильный вариант перевода:\n5. There were so many people there that nobody noticed his absence.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If there had not been so many people there nobody would have noticed his absence.", "isCorrect" to false),
-                    mapOf("text" to "b) If there had not were so many people anybody would noticed his absence.", "isCorrect" to false),
-                    mapOf("text" to "c) If there had not been so many people there anybody would have noticed his absence.", "isCorrect" to true),
-                    mapOf("text" to "d) If there had were not been so many people anybody would had noticed his absence.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q12", "text" to "2. Выберите правильный вариант перевода:\n6. We don't like cheese. We don't buy it.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If we don't like cheese we would not buy it.", "isCorrect" to false),
-                    mapOf("text" to "b) If we liked cheese we would not buy it.", "isCorrect" to false),
-                    mapOf("text" to "c) If we liked cheese we would buy it", "isCorrect" to true),
-                    mapOf("text" to "d) If we like cheese we would bought it.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q13", "text" to "2. Выберите правильный вариант перевода:\n7. He lost his temper and said things he did not really mean.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If he had not lost his temper he would not have said the things he really meant.", "isCorrect" to false),
-                    mapOf("text" to "b) If he had not lost his temper he would not have said the things he did not really mean.", "isCorrect" to true),
-                    mapOf("text" to "c) If he had not loose his temper he would not have say the things he did not really mean.", "isCorrect" to false),
-                    mapOf("text" to "d) If he have not lost his temper he would not had said the things he did not really mean.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q14", "text" to "2. Выберите правильный вариант перевода:\n8. I don't know your aunt, I can't meet her at the station.",
-                "answers" to listOf(
-                    mapOf("text" to "a) If I know your aunt I would can meet her at the station.", "isCorrect" to false),
-                    mapOf("text" to "b) If I knew your aunt I would could meet her at the station.", "isCorrect" to false),
-                    mapOf("text" to "c) If I knew your aunt I could her at the station.", "isCorrect" to false),
-                    mapOf("text" to "d) If I knew your aunt I could meet her at the station.", "isCorrect" to true)
-                )),
-
-            // Блок 3 – Выберите правильный вариант (4 вопроса)
-            mapOf("id" to "q15", "text" to "3. Выберите правильный вариант:\n1. I had a sandwich for lunch. If I … (have) a proper lunch, I … (not feel) so hungry now.",
-                "answers" to listOf(
-                    mapOf("text" to "a) had, would not feel", "isCorrect" to false),
-                    mapOf("text" to "b) had had, would not have felt", "isCorrect" to false),
-                    mapOf("text" to "c) had had, would not feel", "isCorrect" to true)
-                )),
-            mapOf("id" to "q16", "text" to "3. Выберите правильный вариант:\n2. He told his friend, \"I'm not feeling very well. I … (not be) here today if I … (not promise) to come.\"",
-                "answers" to listOf(
-                    mapOf("text" to "a) would not be, had not promised", "isCorrect" to true),
-                    mapOf("text" to "b) would be not, had not promised", "isCorrect" to false),
-                    mapOf("text" to "c) would have been not, had not promised", "isCorrect" to false)
-                )),
-            mapOf("id" to "q17", "text" to "3. Выберите правильный вариант:\n3. If it (be) all the same to me, I (not come) and (talk) with you.",
-                "answers" to listOf(
-                    mapOf("text" to "a) is, would not came, talked", "isCorrect" to false),
-                    mapOf("text" to "b) had been, would not come, talked", "isCorrect" to false),
-                    mapOf("text" to "c) were, would not have come, talked", "isCorrect" to true)
-                )),
-            mapOf("id" to "q18", "text" to "3. Выберите правильный вариант:\n4. I can hardly keep my eyes open. If I … (go) to bed earlier last night, I … (not be) so tired now.",
-                "answers" to listOf(
-                    mapOf("text" to "a) went, am not be", "isCorrect" to false),
-                    mapOf("text" to "b) had gone, would not be", "isCorrect" to true),
-                    mapOf("text" to "c) went, would not be", "isCorrect" to false)
-                )),
-
-            // Блок 4 – I wish… (4 вопроса)
-            mapOf("id" to "q19", "text" to "4. Выберите правильный вариант переделки следующих предложений в предложения, начинающиеся с I wish…:\n1. We lost the game yesterday. (win)",
-                "answers" to listOf(
-                    mapOf("text" to "a) I wish we won the game yesterday.", "isCorrect" to false),
-                    mapOf("text" to "b) I wish we didn't win the game yesterday.", "isCorrect" to false),
-                    mapOf("text" to "c) I wish we had won the game yesterday.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q20", "text" to "4. Выберите правильный вариант:\n2. I sat at the back of the hall, and couldn't hear his speech very well. (every word)",
-                "answers" to listOf(
-                    mapOf("text" to "a) I wish I could heard every word.", "isCorrect" to false),
-                    mapOf("text" to "b) I wish I could have heard every word.", "isCorrect" to true),
-                    mapOf("text" to "c) I wish I could hear every word.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q21", "text" to "4. Выберите правильный вариант:\n3. This house is very nice and comfortable. I'd like to buy it, but it is very expensive. (less expensive)",
-                "answers" to listOf(
-                    mapOf("text" to "a) I wish the house were less expensive.", "isCorrect" to true),
-                    mapOf("text" to "b) I wish the house have been less expensive", "isCorrect" to false),
-                    mapOf("text" to "c) I wish the house is less expensive.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q22", "text" to "4. Выберите правильный вариант:\n4. Why didn't you watch the cat? It ate all the fish. I'm so angry with you. (more attentive)",
-                "answers" to listOf(
-                    mapOf("text" to "a) I wish you have been more attentive.", "isCorrect" to false),
-                    mapOf("text" to "b) I wish you were not more attentive.", "isCorrect" to false),
-                    mapOf("text" to "c) I wish you were more attentive.", "isCorrect" to true)
-                ))
-        )
-    }*/
-
-    /*
-    // ==================== ТЕСТ: REPORTED SPEECH (Косвенная речь) ====================
-
-    private fun uploadReportedSpeechTest() {
-        coroutineScope.launch {
-            try {
-                val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Reported Speech")
-                    .setMessage("Загружаем тест с 16 вопросами...\nЭто может занять несколько секунд")
-                    .setCancelable(false)
-                    .create()
-                progressDialog.show()
-
-                // 1. Создаём документ теста
-                val testData = hashMapOf<String, Any>(
-                    "title" to "Reported Speech (Косвенная речь)",
-                    "num" to 12,
-                    "semester" to 2,
-                    "totalScore" to 16,
-                    "hasParts" to false
-                )
-
-                val testDocRef = db.collection("tests").document()
-                val testId = testDocRef.id
-                testDocRef.set(testData).await()
-
-                // 2. Создаём часть теста
-                val partData = hashMapOf<String, Any>(
-                    "title" to "Основная часть",
-                    "num" to 1,
-                    "enterAnswer" to false,
-                    "lecId" to "not"
-                )
-
-                val partDocRef = db.collection("tests")
-                    .document(testId)
-                    .collection("parts")
-                    .document()
-                val partId = partDocRef.id
-                partDocRef.set(partData).await()
-
-                // 3. Добавляем все 16 вопросов
-                val questions = getReportedSpeechQuestions()
-                for (question in questions) {
-                    db.collection("tests")
-                        .document(testId)
-                        .collection("parts")
-                        .document(partId)
-                        .collection("questions")
-                        .document(question["id"] as String)
-                        .set(question)
-                        .await()
-                }
-
-                progressDialog.dismiss()
-
-                Toast.makeText(
-                    this@RoleSelectionActivity,
-                    "✅ Тест 'Reported Speech (Косвенная речь)' успешно загружен!\n\n" +
-                            "Test ID: $testId\n" +
-                            "Part ID: $partId\n" +
-                            "Вопросов: 16",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                Log.d("UploadTest", "Reported Speech test uploaded successfully. TestID: $testId")
-
-            } catch (e: Exception) {
-                //progressDialog.dismiss()
-                AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Ошибка загрузки теста")
-                    .setMessage("Произошла ошибка:\n${e.message}")
-                    .setPositiveButton("OK", null)
-                    .show()
-                e.printStackTrace()
-            }
-        }
-    }
-
-// ==================== ВСЕ 16 ВОПРОСОВ ====================
-
-    private fun getReportedSpeechQuestions(): List<Map<String, Any>> {
-        return listOf(
-
-            // Блок 1 – Выберите правильный вариант (4 вопроса)
-            mapOf("id" to "q1", "text" to "1. Выберите правильный вариант:\n1. He said (that) ostriches … fly.",
-                "answers" to listOf(
-                    mapOf("text" to "a) could", "isCorrect" to true),
-                    mapOf("text" to "b) can", "isCorrect" to false)
-                )),
-            mapOf("id" to "q2", "text" to "1. Выберите правильный вариант:\n2. She said that the Amazon … the widest river in the world.",
-                "answers" to listOf(
-                    mapOf("text" to "a) is", "isCorrect" to false),
-                    mapOf("text" to "b) was", "isCorrect" to true)
-                )),
-            mapOf("id" to "q3", "text" to "1. Выберите правильный вариант:\n3. He said that the Earth … the largest planet in the universe.",
-                "answers" to listOf(
-                    mapOf("text" to "a) is", "isCorrect" to false),
-                    mapOf("text" to "b) was", "isCorrect" to true)
-                )),
-            mapOf("id" to "q4", "text" to "1. Выберите правильный вариант:\n4. She said that penguins … in the desert.",
-                "answers" to listOf(
-                    mapOf("text" to "a) was", "isCorrect" to true),
-                    mapOf("text" to "b) is", "isCorrect" to false)
-                )),
-
-            // Блок 2 – Выберите правильный вариант (4 вопроса)
-            mapOf("id" to "q5", "text" to "2. Выберите правильный вариант:\n1. She said (that) she … finished all her work.",
-                "answers" to listOf(
-                    mapOf("text" to "a) has", "isCorrect" to false),
-                    mapOf("text" to "b) had", "isCorrect" to true)
-                )),
-            mapOf("id" to "q6", "text" to "2. Выберите правильный вариант:\n2. She asked him why he … looking at her like that.",
-                "answers" to listOf(
-                    mapOf("text" to "a) is", "isCorrect" to false),
-                    mapOf("text" to "b) was", "isCorrect" to true)
-                )),
-            mapOf("id" to "q7", "text" to "2. Выберите правильный вариант:\n3. His mother said … play with matches.",
-                "answers" to listOf(
-                    mapOf("text" to "a) not to", "isCorrect" to true),
-                    mapOf("text" to "b) don't", "isCorrect" to false)
-                )),
-            mapOf("id" to "q8", "text" to "2. Выберите правильный вариант:\n4. She asked her husband if he … be home soon.",
-                "answers" to listOf(
-                    mapOf("text" to "a) would", "isCorrect" to true),
-                    mapOf("text" to "b) will", "isCorrect" to false)
-                )),
-
-            // Блок 3 – Выберите правильный вариант (4 вопроса)
-            mapOf("id" to "q9", "text" to "3. Выберите правильный вариант:\n1. She asked how she … tell Tom the bad news.",
-                "answers" to listOf(
-                    mapOf("text" to "a) shall", "isCorrect" to false),
-                    mapOf("text" to "b) should", "isCorrect" to true)
-                )),
-            mapOf("id" to "q10", "text" to "3. Выберите правильный вариант:\n2. He asked if he … go home immediately.",
-                "answers" to listOf(
-                    mapOf("text" to "a) can", "isCorrect" to false),
-                    mapOf("text" to "b) could", "isCorrect" to true)
-                )),
-            mapOf("id" to "q11", "text" to "3. Выберите правильный вариант:\n3. He asked her if he … call her first name.",
-                "answers" to listOf(
-                    mapOf("text" to "a) might", "isCorrect" to true),
-                    mapOf("text" to "b) may", "isCorrect" to false)
-                )),
-            mapOf("id" to "q12", "text" to "3. Выберите правильный вариант:\n4. He asked what time they … arrive in London.",
-                "answers" to listOf(
-                    mapOf("text" to "a) should", "isCorrect" to false),
-                    mapOf("text" to "b) would", "isCorrect" to true)
-                )),
-
-            // Блок 4 – Выберите правильный вариант (4 вопроса)
-            mapOf("id" to "q13", "text" to "4. Выберите правильный вариант:\n1. He asked what time the next bus … because he needed to get to the station.",
-                "answers" to listOf(
-                    mapOf("text" to "a) leaves", "isCorrect" to false),
-                    mapOf("text" to "b) left", "isCorrect" to true)
-                )),
-            mapOf("id" to "q14", "text" to "4. Выберите правильный вариант:\n2. She told … go swimming in the lake, because the water was filthy.",
-                "answers" to listOf(
-                    mapOf("text" to "a) don't", "isCorrect" to false),
-                    mapOf("text" to "b) not to", "isCorrect" to true)
-                )),
-            mapOf("id" to "q15", "text" to "4. Выберите правильный вариант:\n3. She asked him … take her ring, explaining that it was a present.",
-                "answers" to listOf(
-                    mapOf("text" to "a) not to", "isCorrect" to true),
-                    mapOf("text" to "b) don't", "isCorrect" to false)
-                )),
-            mapOf("id" to "q16", "text" to "4. Выберите правильный вариант:\n4. She told him to stop making that noise, because she … concentrate.",
-                "answers" to listOf(
-                    mapOf("text" to "a) can't", "isCorrect" to false),
-                    mapOf("text" to "b) couldn't", "isCorrect" to true)
-                ))
-        )
-    }*/
-
-    /*// ==================== ТЕСТ: SEQUENCE OF TENSES (Согласование времён) ====================
 
     private fun uploadSequenceOfTensesTest() {
         coroutineScope.launch {
@@ -1203,29 +1054,26 @@ class RoleSelectionActivity : AppCompatActivity() {
                     mapOf("text" to "b) next day", "isCorrect" to false)
                 ))
         )
-    }*/
+    }
 
-    /*
-    // ==================== ТЕСТ: PASSIVE VOICE (Страдательный залог) ====================
+    // ==================== ТЕСТ: GERUND (Герундий) ====================
 
-    // ==================== ТЕСТ: MODAL VERBS (Модальные глаголы) ====================
-
-    private fun uploadModalVerbsTest() {
+    private fun uploadGerundTest() {
         coroutineScope.launch {
             try {
                 val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Modal Verbs")
-                    .setMessage("Загружаем тест с 11 вопросами...\nЭто может занять несколько секунд")
+                    .setTitle("Загрузка теста Gerund")
+                    .setMessage("Загружаем тест с 24 вопросами...\nЭто может занять несколько секунд")
                     .setCancelable(false)
                     .create()
                 progressDialog.show()
 
                 // 1. Создаём документ теста
                 val testData = hashMapOf<String, Any>(
-                    "title" to "Modal Verbs (Модальные глаголы)",
-                    "num" to 10,
-                    "semester" to 2,
-                    "totalScore" to 11,
+                    "title" to "Gerund (Герундий)",
+                    "num" to 12,  // номер теста (можно изменить)
+                    "semester" to 4,  // IV семестр
+                    "totalScore" to 24,
                     "hasParts" to false
                 )
 
@@ -1248,8 +1096,8 @@ class RoleSelectionActivity : AppCompatActivity() {
                 val partId = partDocRef.id
                 partDocRef.set(partData).await()
 
-                // 3. Добавляем все 11 вопросов
-                val questions = getModalVerbsQuestions()
+                // 3. Добавляем все 24 вопроса
+                val questions = getGerundQuestions()
                 for (question in questions) {
                     db.collection("tests")
                         .document(testId)
@@ -1265,17 +1113,16 @@ class RoleSelectionActivity : AppCompatActivity() {
 
                 Toast.makeText(
                     this@RoleSelectionActivity,
-                    "✅ Тест 'Modal Verbs (Модальные глаголы)' успешно загружен!\n\n" +
+                    "✅ Тест 'Gerund (Герундий)' успешно загружен!\n\n" +
                             "Test ID: $testId\n" +
                             "Part ID: $partId\n" +
-                            "Вопросов: 11",
+                            "Вопросов: 24",
                     Toast.LENGTH_LONG
                 ).show()
 
-                Log.d("UploadTest", "Modal Verbs test uploaded successfully. TestID: $testId")
+                Log.d("UploadTest", "Gerund test uploaded successfully. TestID: $testId")
 
             } catch (e: Exception) {
-                //progressDialog.dismiss()
                 AlertDialog.Builder(this@RoleSelectionActivity)
                     .setTitle("Ошибка загрузки теста")
                     .setMessage("Произошла ошибка:\n${e.message}")
@@ -1286,588 +1133,180 @@ class RoleSelectionActivity : AppCompatActivity() {
         }
     }
 
-// ==================== ВСЕ 11 ВОПРОСОВ ====================
+// ==================== ВСЕ 24 ВОПРОСА ПО ТЕМЕ GERUND ====================
 
-    private fun getModalVerbsQuestions(): List<Map<String, Any>> {
+    private fun getGerundQuestions(): List<Map<String, Any>> {
         return listOf(
-
-            // Блок 1 – Вставьте can или be able to (5 вопросов)
-            mapOf("id" to "q1", "text" to "1. Вставьте в пропуски can или be able to в нужной временной форме:\n1. By the time Phillis was ten, he … speak three languages.",
+            // ========== Упражнение 1 – Выберите правильный вариант (Indefinite/Perfect Active/Passive Gerund) ==========
+            mapOf("id" to "q1", "text" to "1. Выберите правильный вариант, используя Indefinite/Perfect Active/Passive Gerund:\n\n1. He remembered … (cross) the road, but he didn't remember … (knock down).",
                 "answers" to listOf(
-                    mapOf("text" to "a) could", "isCorrect" to true),
-                    mapOf("text" to "b) was able", "isCorrect" to false)
-                )),
-            mapOf("id" to "q2", "text" to "1. Вставьте в пропуски can или be able to в нужной временной форме:\n2. If you don't tell me what your problem is, I … help you.",
-                "answers" to listOf(
-                    mapOf("text" to "a) will not be able to", "isCorrect" to true),
-                    mapOf("text" to "b) will not can", "isCorrect" to false)
-                )),
-            mapOf("id" to "q3", "text" to "1. Вставьте в пропуски can или be able to в нужной временной форме:\n3. I got home early last night, so I … watch my favourite program on TV.",
-                "answers" to listOf(
-                    mapOf("text" to "a) could", "isCorrect" to false),
-                    mapOf("text" to "b) was able to", "isCorrect" to true)
-                )),
-            mapOf("id" to "q4", "text" to "1. Вставьте в пропуски can или be able to в нужной временной форме:\n4. I … eat anything when I was younger, but now I have to be more careful.",
-                "answers" to listOf(
-                    mapOf("text" to "a) could", "isCorrect" to true),
-                    mapOf("text" to "b) was able to", "isCorrect" to false)
-                )),
-            mapOf("id" to "q5", "text" to "1. Вставьте в пропуски can или be able to в нужной временной форме:\n5. He … pass the exam because he had studied hard.",
-                "answers" to listOf(
-                    mapOf("text" to "a) could", "isCorrect" to false),
-                    mapOf("text" to "b) was able to", "isCorrect" to true)
+                    mapOf("text" to "a) crossing, being knocked down", "isCorrect" to true),
+                    mapOf("text" to "b) having crossed, having been knocked down", "isCorrect" to false),
+                    mapOf("text" to "c) having crossed, being knocked down", "isCorrect" to false)
                 )),
 
-            // Блок 2 – Выберите правильный вариант (6 вопросов)
-            mapOf("id" to "q6", "text" to "2. Выберите правильный вариант:\n1. I wonder where Paul is. He ... be at work because he never works on Sunday.",
+            mapOf("id" to "q2", "text" to "1. Выберите правильный вариант:\n\n2. I am still hungry in spite of … (eat) four sandwiches.",
                 "answers" to listOf(
-                    mapOf("text" to "a) is not able to", "isCorrect" to false),
-                    mapOf("text" to "b) can't", "isCorrect" to true)
+                    mapOf("text" to "a) eating", "isCorrect" to false),
+                    mapOf("text" to "b) having eaten", "isCorrect" to true),
+                    mapOf("text" to "c) have eating", "isCorrect" to false)
                 )),
-            mapOf("id" to "q7", "text" to "2. Выберите правильный вариант:\n2. He … be at Sally's, but I doubt it because they haven't been speaking lately.",
+
+            mapOf("id" to "q3", "text" to "1. Выберите правильный вариант:\n\n3. He got into the house by … (climb) through a window, without … (see) by anyone.",
                 "answers" to listOf(
-                    mapOf("text" to "a) may", "isCorrect" to true),
-                    mapOf("text" to "b) ought to", "isCorrect" to false)
+                    mapOf("text" to "a) having climbed, having seen", "isCorrect" to false),
+                    mapOf("text" to "b) climbing, being seen", "isCorrect" to true),
+                    mapOf("text" to "c) having climbed, being seen", "isCorrect" to false)
                 )),
-            mapOf("id" to "q8", "text" to "2. Выберите правильный вариант:\n3. He … have gone bowling, I'm almost sure, he told me he was going to.",
+
+            mapOf("id" to "q4", "text" to "1. Выберите правильный вариант:\n\n4. He woke up at 7 a.m. in spite of … (work) late.",
                 "answers" to listOf(
-                    mapOf("text" to "a) might", "isCorrect" to false),
-                    mapOf("text" to "b) must", "isCorrect" to true)
+                    mapOf("text" to "a) having worked", "isCorrect" to false),
+                    mapOf("text" to "b) have working", "isCorrect" to false),
+                    mapOf("text" to "c) working", "isCorrect" to true)
                 )),
-            mapOf("id" to "q9", "text" to "2. Выберите правильный вариант:\n4. Your car is in terrible condition. You … get a new one before the police stop you.",
+
+            mapOf("id" to "q5", "text" to "1. Выберите правильный вариант:\n\n5. He complained of … (give) a very small room at the back of the hotel.",
                 "answers" to listOf(
-                    mapOf("text" to "a) may", "isCorrect" to false),
-                    mapOf("text" to "b) ought to", "isCorrect" to true)
+                    mapOf("text" to "a) being given", "isCorrect" to true),
+                    mapOf("text" to "b) having given", "isCorrect" to false),
+                    mapOf("text" to "c) having been given", "isCorrect" to false)
                 )),
-            mapOf("id" to "q10", "text" to "2. Выберите правильный вариант:\n5. Don't deceive me, you ... regret it.",
+
+            mapOf("id" to "q6", "text" to "1. Выберите правильный вариант:\n\n6. The little girl never gets tired of … (ask) her mother questions, but her mother often gets tired of … (ask) so many questions.",
                 "answers" to listOf(
-                    mapOf("text" to "a) shall", "isCorrect" to true),
-                    mapOf("text" to "b) must", "isCorrect" to false)
+                    mapOf("text" to "a) being asked, asking", "isCorrect" to false),
+                    mapOf("text" to "b) asking, having asked", "isCorrect" to false),
+                    mapOf("text" to "c) asking, being asked", "isCorrect" to true)
                 )),
-            mapOf("id" to "q11", "text" to "2. Выберите правильный вариант:\n6. Sally, have you spent the money I lent you last week? You … have spent it all!",
+
+            mapOf("id" to "q7", "text" to "1. Выберите правильный вариант:\n\n7. He enjoyed ... (need).",
                 "answers" to listOf(
-                    mapOf("text" to "a) ought not to", "isCorrect" to true),
-                    mapOf("text" to "b) could not", "isCorrect" to false)
+                    mapOf("text" to "a) needing", "isCorrect" to false),
+                    mapOf("text" to "b) having needed", "isCorrect" to false),
+                    mapOf("text" to "c) being needed", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q8", "text" to "1. Выберите правильный вариант:\n\n8. I don't like ... (interfere) with.",
+                "answers" to listOf(
+                    mapOf("text" to "a) interfering", "isCorrect" to false),
+                    mapOf("text" to "b) being interfered", "isCorrect" to true),
+                    mapOf("text" to "c) having been interfered", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 2 – Выберите правильный вариант перевода с герундием ==========
+            mapOf("id" to "q9", "text" to "2. Выберите правильный вариант перевода на английский язык с помощью герундия части предложения, стоящей в скобках:\n\n1. How proud I was of... (что изобрел это устройство).",
+                "answers" to listOf(
+                    mapOf("text" to "a) having invented this device", "isCorrect" to true),
+                    mapOf("text" to "b) inventing", "isCorrect" to false),
+                    mapOf("text" to "c) have inventing", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q10", "text" to "2. Выберите правильный вариант перевода:\n\n2. They accused him ... (в том, что он предал своих друзей).",
+                "answers" to listOf(
+                    mapOf("text" to "a) of having betrayed", "isCorrect" to false),
+                    mapOf("text" to "b) of betraying his friends", "isCorrect" to true),
+                    mapOf("text" to "c) betraying his friends", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q11", "text" to "2. Выберите правильный вариант перевода:\n\n3. I can't recall ... (чтобы меня с ним когда-нибудь знакомили). I even don't remember... (что видел его).",
+                "answers" to listOf(
+                    mapOf("text" to "a) of having been introduced to him, having seen him", "isCorrect" to true),
+                    mapOf("text" to "b) of being introduced to him, seeing him", "isCorrect" to false),
+                    mapOf("text" to "c) of having introduced to him, having seen him", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q12", "text" to "2. Выберите правильный вариант перевода:\n\n4. He couldn't get used ... (к левостороннему движению/водить машину по левой стороне).",
+                "answers" to listOf(
+                    mapOf("text" to "a) to driving on the lefthand side of the road", "isCorrect" to true),
+                    mapOf("text" to "b) driving on the lefthand side of the road", "isCorrect" to false),
+                    mapOf("text" to "c) having driven on the lefthand side of the road", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q13", "text" to "2. Выберите правильный вариант перевода:\n\n5. Excuse me ... (что я вошел не постучав).",
+                "answers" to listOf(
+                    mapOf("text" to "a) entering the room without knocking", "isCorrect" to false),
+                    mapOf("text" to "b) of having entered the room without knocking", "isCorrect" to false),
+                    mapOf("text" to "c) for entering the room without knocking", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q14", "text" to "2. Выберите правильный вариант перевода:\n\n6. In the morning she was ashamed of herself for ... (что была так груба вчера вечером).",
+                "answers" to listOf(
+                    mapOf("text" to "a) have being been so rude the night before", "isCorrect" to false),
+                    mapOf("text" to "b) having been so rude the night before", "isCorrect" to true),
+                    mapOf("text" to "c) being so rude the night before", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q15", "text" to "2. Выберите правильный вариант перевода:\n\n7. Why do you avoid ... (смотреть на меня)?",
+                "answers" to listOf(
+                    mapOf("text" to "a) having looked at me", "isCorrect" to false),
+                    mapOf("text" to "b) of looking at me", "isCorrect" to false),
+                    mapOf("text" to "c) looking at me", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q16", "text" to "2. Выберите правильный вариант перевода:\n\n8. He's merely used to ... (что за ним ухаживают).",
+                "answers" to listOf(
+                    mapOf("text" to "a) being taken care of", "isCorrect" to true),
+                    mapOf("text" to "b) having been taken care of", "isCorrect" to false),
+                    mapOf("text" to "c) taking care of", "isCorrect" to false)
+                )),
+
+            // ========== Упражнение 3 – Выберите правильный вариант (предлоги и фразы с герундием) ==========
+            mapOf("id" to "q17", "text" to "3. Выберите правильный вариант:\n\n1. I have no intention ... (stay) here any longer.",
+                "answers" to listOf(
+                    mapOf("text" to "a) staying", "isCorrect" to false),
+                    mapOf("text" to "b) of staying", "isCorrect" to true),
+                    mapOf("text" to "c) for staying", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q18", "text" to "3. Выберите правильный вариант:\n\n2. She insisted ... (help) me.",
+                "answers" to listOf(
+                    mapOf("text" to "a) on helping", "isCorrect" to true),
+                    mapOf("text" to "b) at helping", "isCorrect" to false),
+                    mapOf("text" to "c) with helping", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q19", "text" to "3. Выберите правильный вариант:\n\n3. There is no possibility ... (find) his address.",
+                "answers" to listOf(
+                    mapOf("text" to "a) finding", "isCorrect" to false),
+                    mapOf("text" to "b) of finding", "isCorrect" to true),
+                    mapOf("text" to "c) being found", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q20", "text" to "3. Выберите правильный вариант:\n\n4. There is little chance ... (see) her today.",
+                "answers" to listOf(
+                    mapOf("text" to "a) seeing", "isCorrect" to false),
+                    mapOf("text" to "b) for seeing", "isCorrect" to false),
+                    mapOf("text" to "c) of seeing", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q21", "text" to "3. Выберите правильный вариант:\n\n5. We have the pleasure ... (send) you our catalogues.",
+                "answers" to listOf(
+                    mapOf("text" to "a) of sending", "isCorrect" to true),
+                    mapOf("text" to "b) of having sent", "isCorrect" to false),
+                    mapOf("text" to "c) having sent", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q22", "text" to "3. Выберите правильный вариант:\n\n6. He is afraid ... (catch) cold.",
+                "answers" to listOf(
+                    mapOf("text" to "a) for catching", "isCorrect" to false),
+                    mapOf("text" to "b) having caught", "isCorrect" to false),
+                    mapOf("text" to "c) of catching", "isCorrect" to true)
+                )),
+
+            mapOf("id" to "q23", "text" to "3. Выберите правильный вариант:\n\n7. I can't help … (think) about this.",
+                "answers" to listOf(
+                    mapOf("text" to "a) thinking", "isCorrect" to true),
+                    mapOf("text" to "b) of thinking", "isCorrect" to false),
+                    mapOf("text" to "c) to thinking", "isCorrect" to false)
+                )),
+
+            mapOf("id" to "q24", "text" to "3. Выберите правильный вариант:\n\n8. They had much difficulty ... (to find) the house.",
+                "answers" to listOf(
+                    mapOf("text" to "a) with finding", "isCorrect" to false),
+                    mapOf("text" to "b) in finding", "isCorrect" to true),
+                    mapOf("text" to "c) of finding", "isCorrect" to false)
                 ))
         )
-    }*/
-    /*private fun uploadPassiveVoiceTest() {
-        coroutineScope.launch {
-            try {
-                val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Passive Voice")
-                    .setMessage("Загружаем тест с 36 вопросами...\nЭто может занять несколько секунд")
-                    .setCancelable(false)
-                    .create()
-                progressDialog.show()
-
-                // 1. Создаём документ теста
-                val testData = hashMapOf<String, Any>(
-                    "title" to "Passive Voice (Страдательный залог)",
-                    "num" to 9,
-                    "semester" to 2,
-                    "totalScore" to 36,
-                    "hasParts" to false
-                )
-
-                val testDocRef = db.collection("tests").document()
-                val testId = testDocRef.id
-                testDocRef.set(testData).await()
-
-                // 2. Создаём часть теста
-                val partData = hashMapOf<String, Any>(
-                    "title" to "Основная часть",
-                    "num" to 1,
-                    "enterAnswer" to false,
-                    "lecId" to "not"
-                )
-
-                val partDocRef = db.collection("tests")
-                    .document(testId)
-                    .collection("parts")
-                    .document()
-                val partId = partDocRef.id
-                partDocRef.set(partData).await()
-
-                // 3. Добавляем все 36 вопросов
-                val questions = getPassiveVoiceQuestions()
-                for (question in questions) {
-                    db.collection("tests")
-                        .document(testId)
-                        .collection("parts")
-                        .document(partId)
-                        .collection("questions")
-                        .document(question["id"] as String)
-                        .set(question)
-                        .await()
-                }
-
-                progressDialog.dismiss()
-
-                Toast.makeText(
-                    this@RoleSelectionActivity,
-                    "✅ Тест 'Passive Voice (Страдательный залог)' успешно загружен!\n\n" +
-                            "Test ID: $testId\n" +
-                            "Part ID: $partId\n" +
-                            "Вопросов: 36",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                Log.d("UploadTest", "Passive Voice test uploaded successfully. TestID: $testId")
-
-            } catch (e: Exception) {
-                //progressDialog.dismiss()
-                AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Ошибка загрузки теста")
-                    .setMessage("Произошла ошибка:\n${e.message}")
-                    .setPositiveButton("OK", null)
-                    .show()
-                e.printStackTrace()
-            }
-        }
     }
-
-// ==================== ВСЕ 36 ВОПРОСОВ ====================
-
-    private fun getPassiveVoiceQuestions(): List<Map<String, Any>> {
-        return listOf(
-
-            // Блок 1 – Выберите правильный вариант (вопросы 1–12)
-            mapOf("id" to "q1", "text" to "Выберите правильный вариант:\n1. She is very selfish, she … (spoil) by her parents.",
-                "answers" to listOf(
-                    mapOf("text" to "a) is spoiled", "isCorrect" to true),
-                    mapOf("text" to "b) has been spoiled", "isCorrect" to false),
-                    mapOf("text" to "c) was been spoiled", "isCorrect" to false)
-                )),
-            mapOf("id" to "q2", "text" to "Выберите правильный вариант:\n2. This room … (use) only on special occasions.",
-                "answers" to listOf(
-                    mapOf("text" to "a) used", "isCorrect" to false),
-                    mapOf("text" to "b) is used", "isCorrect" to true),
-                    mapOf("text" to "c) be used", "isCorrect" to false)
-                )),
-            mapOf("id" to "q3", "text" to "Выберите правильный вариант:\n3. Why nothing … (to do) about it at the time?",
-                "answers" to listOf(
-                    mapOf("text" to "a) was be done", "isCorrect" to false),
-                    mapOf("text" to "b) was being done", "isCorrect" to true),
-                    mapOf("text" to "c) was did", "isCorrect" to false)
-                )),
-            mapOf("id" to "q4", "text" to "Выберите правильный вариант:\n4. Dictionaries … (may not use) at the examination.",
-                "answers" to listOf(
-                    mapOf("text" to "a) may used be not", "isCorrect" to false),
-                    mapOf("text" to "b) may be not used", "isCorrect" to false),
-                    mapOf("text" to "c) may not be used", "isCorrect" to true),
-                    mapOf("text" to "d) may are not be used", "isCorrect" to false)
-                )),
-            mapOf("id" to "q5", "text" to "Выберите правильный вариант:\n5. She promised that nothing … (to do) till he came back.",
-                "answers" to listOf(
-                    mapOf("text" to "a) will be done", "isCorrect" to false),
-                    mapOf("text" to "b) would be done", "isCorrect" to true),
-                    mapOf("text" to "c) would been done", "isCorrect" to false),
-                    mapOf("text" to "d) would be did", "isCorrect" to false)
-                )),
-            mapOf("id" to "q6", "text" to "Выберите правильный вариант:\n6. Wherever I went I found evidence that the camp … (to leave) only a short time before we arrived.",
-                "answers" to listOf(
-                    mapOf("text" to "a) would left", "isCorrect" to false),
-                    mapOf("text" to "b) was left", "isCorrect" to false),
-                    mapOf("text" to "c) had been left", "isCorrect" to true)
-                )),
-            mapOf("id" to "q7", "text" to "Выберите правильный вариант:\n7. There's nothing here. Everything … (to take) away.",
-                "answers" to listOf(
-                    mapOf("text" to "a) has taken", "isCorrect" to false),
-                    mapOf("text" to "b) was being taken", "isCorrect" to false),
-                    mapOf("text" to "c) has been taken", "isCorrect" to true)
-                )),
-            mapOf("id" to "q8", "text" to "Выберите правильный вариант:\n8. At lunch nothing … (discuss) but the latest news.",
-                "answers" to listOf(
-                    mapOf("text" to "a) be discussed", "isCorrect" to false),
-                    mapOf("text" to "b) was be discussing", "isCorrect" to false),
-                    mapOf("text" to "c) was being discussed", "isCorrect" to true)
-                )),
-            mapOf("id" to "q9", "text" to "Выберите правильный вариант:\n9. He … (take) to hospital this afternoon, and … (operate on) tomorrow morning.",
-                "answers" to listOf(
-                    mapOf("text" to "a) has been taken, will be operated on", "isCorrect" to false),
-                    mapOf("text" to "b) is taken, will be operated on", "isCorrect" to false),
-                    mapOf("text" to "c) was taken, will been operated on", "isCorrect" to true),
-                    mapOf("text" to "d) had been taken will be operated on", "isCorrect" to false)
-                )),
-            mapOf("id" to "q10", "text" to "Выберите правильный вариант:\n10. The damaged buildings … (reconstruct) now, the reconstruction … (finish) by the end of the year.",
-                "answers" to listOf(
-                    mapOf("text" to "a) are reconstructed, will have been finished", "isCorrect" to false),
-                    mapOf("text" to "b) are being reconstructed, will finish", "isCorrect" to false),
-                    mapOf("text" to "c) have been reconstructed, will have finished", "isCorrect" to false),
-                    mapOf("text" to "d) are being reconstructed, will have been finished", "isCorrect" to true)
-                )),
-            mapOf("id" to "q11", "text" to "Выберите правильный вариант:\n11. She heard footsteps, she thought she … (follow).",
-                "answers" to listOf(
-                    mapOf("text" to "a) followed", "isCorrect" to false),
-                    mapOf("text" to "b) was followed", "isCorrect" to false),
-                    mapOf("text" to "c) had followed", "isCorrect" to false),
-                    mapOf("text" to "d) was being followed", "isCorrect" to true)
-                )),
-            mapOf("id" to "q12", "text" to "Выберите правильный вариант:\n12. Why don't you use your car? - it … (repair) now, I had a bad accident a week ago. - Anybody … (hurt)?",
-                "answers" to listOf(
-                    mapOf("text" to "a) is being repaired, was anybody hurt", "isCorrect" to true),
-                    mapOf("text" to "b) is repaired, anybody was hurt", "isCorrect" to false),
-                    mapOf("text" to "c) it has been repaired, did anybody hurt", "isCorrect" to false),
-                    mapOf("text" to "d) is being repaired, had anybody hurt", "isCorrect" to false)
-                )),
-
-            // Блок 2 – Выберите правильный вариант перевода (вопросы 13–20)
-            mapOf("id" to "q13", "text" to "Выберите правильный вариант перевода предложения, стоящего в активном залоге, в пассивный:\n1. An expert is restoring the antique car.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The antique car is been restored", "isCorrect" to false),
-                    mapOf("text" to "b) The antique car is being restored by an expert.", "isCorrect" to true),
-                    mapOf("text" to "c) The antique car is been restoring by an expert.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q14", "text" to "Выберите правильный вариант перевода:\n2. Steven Spielberg has directed a lot of successful films.",
-                "answers" to listOf(
-                    mapOf("text" to "a) A lot of successful films has been directed by Steven Spielberg.", "isCorrect" to false),
-                    mapOf("text" to "b) A lot of successful films have been directed by Steven Spielberg.", "isCorrect" to true),
-                    mapOf("text" to "c) By Steven Spielberg have been directed а lot of successful films.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q15", "text" to "Выберите правильный вариант перевода:\n3. The judge has fined him ?300.",
-                "answers" to listOf(
-                    mapOf("text" to "a) He was fined ?300 by the judge.", "isCorrect" to false),
-                    mapOf("text" to "b) ?300 have been found for him by the judge.", "isCorrect" to false),
-                    mapOf("text" to "c) He has been fined ?300 by the judge.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q16", "text" to "Выберите правильный вариант перевода:\n4. A number of reporters will meet the professor at the airport.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The professor will be met by a number of reporters at the airport.", "isCorrect" to true),
-                    mapOf("text" to "b) A number of reporters will be met by the professor at the airport.", "isCorrect" to false),
-                    mapOf("text" to "c) The professor will been meet by a number of reporters at the airport.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q17", "text" to "Выберите правильный вариант перевода:\n5. A famous designer is going to redecorate the President's house.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The President's house is being gone to be redecorated by a famous designer.", "isCorrect" to false),
-                    mapOf("text" to "b) A famous designer is gone to redecorate the President's house.", "isCorrect" to false),
-                    mapOf("text" to "c) The President's house is going to be redecorated by a famous designer.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q18", "text" to "Выберите правильный вариант перевода:\n6. A nightmare woke Mary up.",
-                "answers" to listOf(
-                    mapOf("text" to "a) Mary was waken up by a nightmare.", "isCorrect" to true),
-                    mapOf("text" to "b) A nightmare was waked Mary up.", "isCorrect" to false),
-                    mapOf("text" to "c) A nightmare is woked Mary up.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q19", "text" to "Выберите правильный вариант перевода:\n7. Muslims celebrate Ramadan.",
-                "answers" to listOf(
-                    mapOf("text" to "a) Ramadan are celebrated by Muslims.", "isCorrect" to false),
-                    mapOf("text" to "b) Ramadan is celebrated by Muslims.", "isCorrect" to true),
-                    mapOf("text" to "c) Ramadan is been celebrated by Muslims", "isCorrect" to false)
-                )),
-            mapOf("id" to "q20", "text" to "Выберите правильный вариант перевода:\n8. Van Gogh painted \"Sunflowers\".",
-                "answers" to listOf(
-                    mapOf("text" to "a) \"Sunflowers\" were painted by Van Gogh.", "isCorrect" to false),
-                    mapOf("text" to "b) By Van Gogh were painted \"Sunflowers\".", "isCorrect" to false),
-                    mapOf("text" to "c) \"Sunflowers\" was painted by Van Gogh.", "isCorrect" to true)
-                )),
-
-            // Блок 3 – Past Continuous / Past Perfect Passive (вопросы 21–24)
-            mapOf("id" to "q21", "text" to "Выберите правильный вариант (Past Continuous Passive или Past Perfect Passive):\n1. They didn't leave the restaurant until the bill ... (pay).",
-                "answers" to listOf(
-                    mapOf("text" to "a) had paid", "isCorrect" to false),
-                    mapOf("text" to "b) was being paid", "isCorrect" to false),
-                    mapOf("text" to "c) had been paid", "isCorrect" to true),
-                    mapOf("text" to "d) was paid", "isCorrect" to false)
-                )),
-            mapOf("id" to "q22", "text" to "Выберите правильный вариант:\n2. I couldn't go to my favourite cafe for a drink. It … (redecorate).",
-                "answers" to listOf(
-                    mapOf("text" to "a) was being redecorated", "isCorrect" to true),
-                    mapOf("text" to "b) had been redecorated", "isCorrect" to false),
-                    mapOf("text" to "c) had not been redecorated", "isCorrect" to false),
-                    mapOf("text" to "d) was been redecorating", "isCorrect" to false)
-                )),
-            mapOf("id" to "q23", "text" to "Выберите правильный вариант:\n3. He … (take) to the hospital when the ambulance crashed.",
-                "answers" to listOf(
-                    mapOf("text" to "a) was taking", "isCorrect" to false),
-                    mapOf("text" to "b) was being taken", "isCorrect" to true),
-                    mapOf("text" to "c) has been taken", "isCorrect" to false),
-                    mapOf("text" to "d) was to be had taken", "isCorrect" to false)
-                )),
-            mapOf("id" to "q24", "text" to "Выберите правильный вариант:\n4. The search was called off. The escaped criminal … (find).",
-                "answers" to listOf(
-                    mapOf("text" to "a) was not found", "isCorrect" to false),
-                    mapOf("text" to "b) was being found", "isCorrect" to false),
-                    mapOf("text" to "c) had been found", "isCorrect" to true),
-                    mapOf("text" to "d) had not been found", "isCorrect" to false)
-                )),
-
-            // Блок 4 – Способы перевода (вопросы 25–28)
-            mapOf("id" to "q25", "text" to "Выберите правильный вариант способов перевода активных предложений в пассивные:\n1. They have offered him the job.",
-                "answers" to listOf(
-                    mapOf("text" to "a) He was offered a job. A job was offered to him.", "isCorrect" to false),
-                    mapOf("text" to "b) He has been offered the job. The job has been offered to him.", "isCorrect" to true),
-                    mapOf("text" to "c) They have been offered the job. The job has been offered to him.", "isCorrect" to false),
-                    mapOf("text" to "d) He have been offered the job by them The have been offered to him by them.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q26", "text" to "Выберите правильный вариант:\n2. She will send you a fax.",
-                "answers" to listOf(
-                    mapOf("text" to "a) You will be sent a fax. A fax will be sent to you.", "isCorrect" to true),
-                    mapOf("text" to "b) A fax will be sent to her. A fax will be sent to you.", "isCorrect" to false),
-                    mapOf("text" to "c) You will be send a fax. A fax will be send to you.", "isCorrect" to false),
-                    mapOf("text" to "d) A fax will be send to her. A fax will be send to you.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q27", "text" to "Выберите правильный вариант:\n3. They are going to show me a new technique.",
-                "answers" to listOf(
-                    mapOf("text" to "a) I am going to show them a new technique. A new technique is going to show me.", "isCorrect" to false),
-                    mapOf("text" to "b) They are going to be shown a new technique. I am going to be shown a new technique.", "isCorrect" to false),
-                    mapOf("text" to "c) They are going to be shown a new technique. A new technique is going to be shown to me.", "isCorrect" to false),
-                    mapOf("text" to "d) I am going to be shown a new technique. A new technique is going to be shown to me.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q28", "text" to "Выберите правильный вариант:\n4. They should give the students extra lessons.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The students are should be given extra lessons. Extra lessons are should be given to students.", "isCorrect" to false),
-                    mapOf("text" to "b) The students should be given extra lessons. Extra lessons should be given to students.", "isCorrect" to true),
-                    mapOf("text" to "c) The students should are be given extra lessons. Extra lessons should are be given to students.", "isCorrect" to false),
-                    mapOf("text" to "d) They should the students be given extra lessons. They should extra lessons be given to students.", "isCorrect" to false)
-                )),
-
-            // Блок 5 – Перевод предложений в пассивном залоге (вопросы 29–36)
-            mapOf("id" to "q29", "text" to "Выберите правильный вариант перевода в пассивном залоге следующих предложений:\n1. На него нельзя положиться.",
-                "answers" to listOf(
-                    mapOf("text" to "a) He can't be relied on.", "isCorrect" to true),
-                    mapOf("text" to "b) He can't be rely on.", "isCorrect" to false),
-                    mapOf("text" to "c) He cannot is relied on.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q30", "text" to "Выберите правильный вариант:\n2. Он не любит, когда над ним смеются.",
-                "answers" to listOf(
-                    mapOf("text" to "a) He doesn't like been laughed.", "isCorrect" to false),
-                    mapOf("text" to "b) He doesn't like to be laughed at.", "isCorrect" to true),
-                    mapOf("text" to "c) To be laughed he doesn't like at.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q31", "text" to "Выберите правильный вариант:\n3. За доктором послали.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The doctor is been sent for.", "isCorrect" to false),
-                    mapOf("text" to "b) For the doctor has been sent.", "isCorrect" to false),
-                    mapOf("text" to "c) The doctor has been sent for.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q32", "text" to "Выберите правильный вариант:\n4. За машиной хорошо смотрели.",
-                "answers" to listOf(
-                    mapOf("text" to "a) The car was well looked after.", "isCorrect" to true),
-                    mapOf("text" to "b) After the car was well looked.", "isCorrect" to false),
-                    mapOf("text" to "c) They were looked after the car well.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q33", "text" to "Выберите правильный вариант:\n5. Её слушали в тишине.",
-                "answers" to listOf(
-                    mapOf("text" to "a) She was listened by in silence.", "isCorrect" to false),
-                    mapOf("text" to "b) She was being listened to in silence.", "isCorrect" to false),
-                    mapOf("text" to "c) She was listened in silence.", "isCorrect" to true)
-                )),
-            mapOf("id" to "q34", "text" to "Выберите правильный вариант:\n6. В больнице о нем позаботятся.",
-                "answers" to listOf(
-                    mapOf("text" to "a) They will take care of him in hospital.", "isCorrect" to false),
-                    mapOf("text" to "b) He will be taken care of in hospital.", "isCorrect" to true),
-                    mapOf("text" to "c) Of him will be taken care of in hospital.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q35", "text" to "Выберите правильный вариант:\n7. Люди говорят о её небрежности.",
-                "answers" to listOf(
-                    mapOf("text" to "a) She is spoken about her carelessness by people.", "isCorrect" to true),
-                    mapOf("text" to "b) About her carelessness is spoken by people.", "isCorrect" to false),
-                    mapOf("text" to "c) Her carelessness is spoken by people about.", "isCorrect" to false)
-                )),
-            mapOf("id" to "q36", "text" to "Выберите правильный вариант:\n8. Тебя везде ищут.",
-                "answers" to listOf(
-                    mapOf("text" to "a) You are be looking for everywhere.", "isCorrect" to false),
-                    mapOf("text" to "b) You are being looked for everywhere.", "isCorrect" to true),
-                    mapOf("text" to "c) You are be looked everywhere for.", "isCorrect" to false)
-                ))
-        )
-    }*/
-
-    // ==================== ТЕСТ 1: DRILLING RIG ====================
-
-    /*private fun uploadDrillingRigTest() {
-        coroutineScope.launch {
-            try {
-                val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Drilling Rig")
-                    .setMessage("Загружаем тест... Это может занять несколько секунд")
-                    .setCancelable(false)
-                    .create()
-                progressDialog.show()
-
-                // 1. Создаём документ теста
-                val testData = hashMapOf<String, Any>(
-                    "title" to "Drilling Rig",
-                    "num" to 3,           // номер теста по вашему усмотрению
-                    "semester" to 3,
-                    "totalScore" to 20,
-                    "hasParts" to true
-                )
-
-                val testDocRef = db.collection("tests").document()
-                val testId = testDocRef.id
-                testDocRef.set(testData).await()
-
-                // 2. Создаём часть теста
-                val partData = hashMapOf<String, Any>(
-                    "title" to "Основная часть",
-                    "num" to 1,
-                    "enterAnswer" to false,
-                    "lecId" to "not"
-                )
-
-                val partDocRef = db.collection("tests")
-                    .document(testId)
-                    .collection("parts")
-                    .document()
-                val partId = partDocRef.id
-                partDocRef.set(partData).await()
-
-                // 3. Добавляем вопросы
-                val questions = getDrillingRigQuestions()
-                for (question in questions) {
-                    db.collection("tests")
-                        .document(testId)
-                        .collection("parts")
-                        .document(partId)
-                        .collection("questions")
-                        .document(question["id"] as String)
-                        .set(question)
-                        .await()
-                }
-
-                progressDialog.dismiss()
-
-                Toast.makeText(
-                    this@RoleSelectionActivity,
-                    "✅ Тест 'Drilling Rig' успешно загружен!\n\n" +
-                            "Test ID: $testId\n" +
-                            "Part ID: $partId\n" +
-                            "Вопросов: ${questions.size}",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                Log.d("UploadTest", "Drilling Rig test uploaded successfully. TestID: $testId")
-
-            } catch (e: Exception) {
-                //progressDialog.dismiss()
-                AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Ошибка загрузки теста")
-                    .setMessage("Произошла ошибка:\n${e.message}")
-                    .setPositiveButton("OK", null)
-                    .show()
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private fun getDrillingRigQuestions(): List<Map<String, Any>> {
-        return listOf(
-            // Task 1 – Matching (8 вопросов)
-            mapOf(
-                "id" to "q1",
-                "text" to "Task 1. Match the given English words and word combinations with their Russian equivalents.\n\n" +
-                        "Введите последовательность букв через точку с запятой (пример: c;a;b;e;d;g;f;h)",
-                "isManualInput" to true,
-                "correctSequence" to "c;a;b;f;d;e;h;g",   // 1-c;2-a;3-b;4-f;5-d;6-e;7-h;8-g
-                "maxPoints" to 8
-            ),
-
-            // Task 2 – True/False (7 вопросов)
-            mapOf(
-                "id" to "q2",
-                "text" to "Task 2. Think if the given statements are true or false.\n\n" +
-                        "Введите последовательность ответов через точку с запятой (T = true, F = false).\n" +
-                        "Пример: F;T;T;T;F;F;T",
-                "isManualInput" to true,
-                "correctSequence" to "F;T;T;T;F;F;T",     // ответы из файла
-                "maxPoints" to 7
-            )
-        )
-    }
-
-    // ==================== ТЕСТ 2: GLOBAL FINANCIAL SYSTEMS ====================
-
-    private fun uploadGlobalFinancialSystemsTest() {
-        coroutineScope.launch {
-            try {
-                val progressDialog = AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Загрузка теста Global Financial Systems")
-                    .setMessage("Загружаем тест... Это может занять несколько секунд")
-                    .setCancelable(false)
-                    .create()
-                progressDialog.show()
-
-                val testData = hashMapOf<String, Any>(
-                    "title" to "Global Financial Systems",
-                    "num" to 3,
-                    "semester" to 3,
-                    "totalScore" to 30,      // Task 1 = 8 + Task 2 = 16 пунктов
-                    "hasParts" to true
-                )
-
-                val testDocRef = db.collection("tests").document()
-                val testId = testDocRef.id
-                testDocRef.set(testData).await()
-
-                val partData = hashMapOf<String, Any>(
-                    "title" to "Основная часть",
-                    "num" to 1,
-                    "enterAnswer" to false,
-                    "lecId" to "not"
-                )
-
-                val partDocRef = db.collection("tests")
-                    .document(testId)
-                    .collection("parts")
-                    .document()
-                val partId = partDocRef.id
-                partDocRef.set(partData).await()
-
-                val questions = getGlobalFinancialSystemsQuestions()
-                for (q in questions) {
-                    db.collection("tests").document(testId)
-                        .collection("parts").document(partId)
-                        .collection("questions").document(q["id"] as String)
-                        .set(q).await()
-                }
-
-                progressDialog.dismiss()
-
-                Toast.makeText(
-                    this@RoleSelectionActivity,
-                    "✅ Тест 'Global Financial Systems' успешно загружен!\n\n" +
-                            "Test ID: $testId\n" +
-                            "Part ID: $partId\n" +
-                            "Вопросов: ${questions.size}",
-                    Toast.LENGTH_LONG
-                ).show()
-
-            } catch (e: Exception) {
-                //progressDialog.dismiss()
-                AlertDialog.Builder(this@RoleSelectionActivity)
-                    .setTitle("Ошибка загрузки теста")
-                    .setMessage("Произошла ошибка:\n${e.message}")
-                    .setPositiveButton("OK", null)
-                    .show()
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private fun getGlobalFinancialSystemsQuestions(): List<Map<String, Any>> {
-        return listOf(
-            // Task 1 – True/False (8 вопросов)
-            mapOf(
-                "id" to "q1",
-                "text" to "Task 1. Decide whether the given statements are true or false.\n\n" +
-                        "Введите последовательность ответов через точку с запятой (T = true, F = false).\n" +
-                        "Пример: F;F;T;F;T;T;F;F",
-                "isManualInput" to true,
-                "correctSequence" to "F;F;T;F;T;T;F;F",   // 1F 2F 3T 4F 5T 6T 7F 8F
-                "maxPoints" to 8
-            ),
-
-            // Task 2 – Matching (16 пунктов)
-            mapOf(
-                "id" to "q2",
-                "text" to "Task 2. Match the Russian words and word combinations with their English equivalents.\n\n" +
-                        "Введите последовательность букв через точку с запятой (пример: c;a;b;f;d;e;h;g;j;i;m;k;l;p;n;o)",
-                "isManualInput" to true,
-                "correctSequence" to "c;a;b;f;d;e;h;g;j;i;m;k;l;p;n;o",   // согласно вашему ответу
-                "maxPoints" to 16
-            )
-        )
-    }*/
 }

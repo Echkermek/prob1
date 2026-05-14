@@ -33,9 +33,9 @@ class TeacherMain : AppCompatActivity() {
             startActivity(Intent(this, DeadlinesActivity::class.java))
         }
 
-        binding.coursesButton.setOnClickListener {
+        /*binding.coursesButton.setOnClickListener {
             startActivity(Intent(this, ManageCoursesActivity::class.java))
-        }
+        }*/
         binding.manualAnswersButton.setOnClickListener {
             startActivity(Intent(this, ManualAnswersActivity::class.java))
         }

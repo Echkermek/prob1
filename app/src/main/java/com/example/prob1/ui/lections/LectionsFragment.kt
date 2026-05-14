@@ -14,7 +14,7 @@ import com.example.prob1.LectionWebViewActivity
 import com.example.prob1.base.BaseFragment
 import com.example.prob1.data.Lection
 import com.example.prob1.data.database.repository.LectionRepository
-import com.example.prob1.data.database.repository.UserRepository
+import com.example.prob1.data.repository.UserRepository
 import com.example.prob1.databinding.FragmentLectionsBinding
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch

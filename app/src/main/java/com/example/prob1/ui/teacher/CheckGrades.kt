@@ -41,6 +41,10 @@ class CheckGrades : AppCompatActivity(), CoroutineScope {
         binding = ActivityCheckGradesBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.backButton.setOnClickListener {
+            finish()
+        }
+
         setupUI()
         loadGroups()
     }

@@ -21,7 +21,7 @@ import com.example.prob1.RulesActivity
 import com.example.prob1.StudentAuthActivity
 import com.example.prob1.base.BaseFragment
 import com.example.prob1.data.database.entities.UserDataEntity
-import com.example.prob1.data.database.repository.UserRepository
+import com.example.prob1.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -86,7 +86,7 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
         binding.score.setOnClickListener {
             val userData = mainViewModel.userData.value
             if (userData != null) {
-                showGradeDialog(userData.totalScore, userData.grade)
+                showGradeDialog(userData.totalScore, userData.grade, userData.semester)
             }
         }
     }
@@ -162,7 +162,7 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
         button.tag = mapOf("points" to totalPoints, "grade" to grade)
     }
 
-    private fun showGradeDialog(totalPoints: Double, grade: Int) {
+    private fun showGradeDialog(totalPoints: Double, grade: Int, semester: Int) {
         val gradeDesc = when (grade) {
             5 -> "Отлично"
             4 -> "Хорошо"
@@ -171,17 +171,41 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
             else -> "Нет данных"
         }
 
-        val message = """
-            Ваша оценка: $gradeDesc ($grade)
-            
-            Всего баллов: ${totalPoints.toInt()}
-            
-            Критерии оценки:
+        val criteria = when (semester) {
+            1 -> """
             • 5 (Отлично): 106 – 125 баллов
             • 4 (Хорошо): 90 – 105 баллов
             • 3 (Удовл.): 76 – 89 баллов
             • 2 (Неуд.): 75 и меньше баллов
         """.trimIndent()
+
+            2 -> """
+            • 5 (Отлично): 128 – 147 баллов
+            • 4 (Хорошо): 112 – 127 баллов
+            • 3 (Удовл.): 98 – 111 баллов
+            • 2 (Неуд.): 97 и меньше баллов
+        """.trimIndent()
+
+            3 -> """
+            • 5 (Отлично): 73 – 92 баллов
+            • 4 (Хорошо): 57 – 72 баллов
+            • 3 (Удовл.): 43 – 56 баллов
+            • 2 (Неуд.): 42 и меньше баллов
+        """.trimIndent()
+
+            else -> "Критерии для семестра не найдены"
+        }
+
+        val message = """
+        Ваша оценка: $gradeDesc ($grade)
+        
+        Семестр: $semester
+        
+        Всего баллов: ${"%.2f".format(totalPoints)}
+        
+        Критерии оценки:
+        $criteria
+    """.trimIndent()
 
         AlertDialog.Builder(requireContext())
             .setTitle("Успеваемость")

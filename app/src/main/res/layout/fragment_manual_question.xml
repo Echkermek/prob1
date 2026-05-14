@@ -41,6 +41,14 @@
             android:layout_marginBottom="16dp"
             android:visibility="gone" />
 
+        <LinearLayout
+            android:id="@+id/spinnerContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="16dp" />
+
         <EditText
             android:id="@+id/manualAnswerInput"
             android:layout_width="match_parent"
@@ -51,6 +59,7 @@
             android:textColor="@color/white"
             android:textColorHint="#AAAAAA"
             android:padding="12dp"
+            android:visibility="visible"
             android:layout_marginBottom="16dp" />
 
         <Button

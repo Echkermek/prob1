@@ -40,7 +40,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
     // Данные для долгов
     private var debtInfoList = mutableListOf<DebtInfo>()
-    private var debtTestsList = mutableListOf<TestWithDeadline>()
+    private val debtTestsByCourse = mutableMapOf<String, MutableList<TestWithDeadline>>()
 
     data class DebtInfo(
         val courseId: String,
@@ -378,6 +378,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
                     .await()
 
                 debtInfoList.clear()
+                debtTestsByCourse.clear()
 
                 for (courseDoc in completedCoursesSnapshot.documents) {
                     val courseId = courseDoc.getString("courseId") ?: continue
@@ -389,8 +390,8 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
                     // Получаем пороговые значения для оценки "удовлетворительно" из коллекции course_grades
                     val passingScore = getPassingScoreForCourse(courseId)
 
-                    // Если студент не набрал проходной балл - это долг
-                    if (studentTotalScore < passingScore && studentTotalScore > 0) {
+                    // Если оценка неудовлетворительная (2) - это долг
+                    if (studentTotalScore < passingScore) {
                         // Получаем тесты этого курса
                         val testCourseSnapshot = firestore.collection("test_course")
                             .whereEqualTo("courseId", courseId)
@@ -399,6 +400,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
                         val testIds = testCourseSnapshot.documents.mapNotNull { it.getString("testId") }
                         val courseTests = mainViewModel.tests.value.filter { it.id in testIds }
+                        if (courseTests.isEmpty()) continue
 
                         debtInfoList.add(
                             DebtInfo(
@@ -412,7 +414,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
                         )
 
                         // Сохраняем тесты этого курса для отображения в диалоге
-                        debtTestsList.addAll(courseTests)
+                        debtTestsByCourse.getOrPut(courseId) { mutableListOf() }.addAll(courseTests)
                     }
                 }
 
@@ -472,6 +474,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
         val messageText = dialogView.findViewById<TextView>(R.id.debtMessageText)
 
         val debtInfo = debtInfoList.first()
+        val debtTests = debtTestsByCourse[debtInfo.courseId].orEmpty()
         val df = DecimalFormat("#.##")
         val infoMessage = """
             Курс: ${debtInfo.courseName}
@@ -483,7 +486,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
         messageText.text = infoMessage
 
-        val debtTestsAdapter = DebtTestsAdapter(debtTestsList.distinctBy { it.id }) { testId ->
+        val debtTestsAdapter = DebtTestsAdapter(debtTests.distinctBy { it.id }) { testId ->
             launchSafe {
                 openTestByRealStructure(testId, true)
             }

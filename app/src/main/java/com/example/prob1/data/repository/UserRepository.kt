@@ -76,13 +76,9 @@ class UserRepository(context: Context) {
             val coins = userDoc.getLong("coins")?.toInt() ?: 100
             val credit = userDoc.getLong("credit")?.toInt() ?: 0
 
-            // Загружаем общий балл
-            val gradesSnapshot = firestore.collection("test_grades")
-                .whereEqualTo("userId", userId)
-                .get()
-                .await()
+            // Загружаем общий балл только по текущему курсу группы
+            val totalScore = calculateCurrentCourseScore(userId, courseId)
 
-            val totalScore = gradesSnapshot.documents.sumOf { it.getDouble("bestScore") ?: 0.0 }
             val grade = calculateGradeFromFirestore(totalScore, semester)
 
             UserDataEntity(
@@ -102,6 +98,34 @@ class UserRepository(context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching user data from Firestore", e)
             null
+        }
+    }
+
+    private suspend fun calculateCurrentCourseScore(userId: String, courseId: String?): Double {
+        if (courseId.isNullOrEmpty()) return 0.0
+
+        return try {
+            val courseTests = firestore.collection("test_course")
+                .whereEqualTo("courseId", courseId)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { it.getString("testId") }
+                .toSet()
+
+            if (courseTests.isEmpty()) return 0.0
+
+            val gradesSnapshot = firestore.collection("test_grades")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            gradesSnapshot.documents
+                .filter { (it.getString("testId") ?: "") in courseTests }
+                .sumOf { it.getDouble("bestScore") ?: 0.0 }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating current course score", e)
+            0.0
         }
     }
 

@@ -532,6 +532,7 @@ class TestActivity : AppCompatActivity() {
         addCoinsForFirstTestPassing()
         updateAttemptDoc(finalScore, raw)
         updateBestGrade(finalScore)
+        updateStudentCourseScore()
 
         showComplexResult(
             raw = raw.toInt(),
@@ -581,6 +582,7 @@ class TestActivity : AppCompatActivity() {
             addCoinsForFirstTestPassing()
             updateAttemptDoc(finalScore, rawScore)
             updateBestGrade(finalScore)
+            updateStudentCourseScore()
 
             showComplexResult(
                 raw = rawScore.toInt(),
@@ -602,6 +604,7 @@ class TestActivity : AppCompatActivity() {
             addCoinsForFirstTestPassing()
             updateAttemptDoc(finalScore, raw)
             updateBestGrade(finalScore)
+            updateStudentCourseScore()
 
             showSemesterScaledResult(
                 raw = raw.toInt(),
@@ -830,6 +833,61 @@ class TestActivity : AppCompatActivity() {
                     "bestAttemptId", attemptDocId
                 ).await()
             }
+        }
+    }
+
+
+    private suspend fun updateStudentCourseScore() {
+        try {
+            val uid = userId ?: return
+
+            val groupSnapshot = db.collection("usersgroup")
+                .whereEqualTo("userId", uid)
+                .limit(1)
+                .get()
+                .await()
+
+            if (groupSnapshot.isEmpty) return
+
+            val groupId = groupSnapshot.documents[0].getString("groupId") ?: return
+
+            val groupDoc = db.collection("groups").document(groupId).get().await()
+            val courseId = groupDoc.getString("courseId") ?: return
+
+            val linkedTests = db.collection("test_course")
+                .whereEqualTo("courseId", courseId)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { it.getString("testId") }
+                .toSet()
+
+            if (linkedTests.isEmpty()) return
+
+            val gradesSnapshot = db.collection("test_grades")
+                .whereEqualTo("userId", uid)
+                .get()
+                .await()
+
+            val totalScore = gradesSnapshot.documents
+                .filter { (it.getString("testId") ?: "") in linkedTests }
+                .sumOf { it.getDouble("bestScore") ?: 0.0 }
+
+            val payload = hashMapOf<String, Any>(
+                "userId" to uid,
+                "groupId" to groupId,
+                "courseId" to courseId,
+                "totalScore" to totalScore,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+
+            val scoreDocId = "${uid}_${groupId}_${courseId}"
+            db.collection("student_course_scores")
+                .document(scoreDocId)
+                .set(payload)
+                .await()
+        } catch (e: Exception) {
+            Log.e("TestActivity", "Failed to update student_course_scores", e)
         }
     }
 

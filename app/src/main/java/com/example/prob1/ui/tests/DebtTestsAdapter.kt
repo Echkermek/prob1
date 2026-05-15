@@ -1,5 +1,6 @@
 package com.example.prob1.ui.tests
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -19,6 +20,10 @@ class DebtTestsAdapter(
     private val onTestClick: (String) -> Unit
 ) : RecyclerView.Adapter<DebtTestsAdapter.DebtTestViewHolder>() {
 
+    init {
+        Log.d("DebtTestsAdapter", "Adapter created with ${tests.size} tests")
+    }
+
     inner class DebtTestViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val testTitle: TextView = itemView.findViewById(R.id.testTitle)
         val testDeadline: TextView = itemView.findViewById(R.id.testDeadline)
@@ -27,6 +32,7 @@ class DebtTestsAdapter(
             itemView.setOnClickListener {
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
+                    Log.d("DebtTestsAdapter", "Test clicked: ${tests[position].test.title}")
                     onTestClick(tests[position].test.id)
                 }
             }
@@ -42,9 +48,8 @@ class DebtTestsAdapter(
     override fun onBindViewHolder(holder: DebtTestViewHolder, position: Int) {
         val testWithDeadline = tests[position]
         holder.testTitle.text = testWithDeadline.test.title
-
-        // Для тестов из долга НЕ показываем дедлайн
         holder.testDeadline.visibility = View.GONE
+        Log.d("DebtTestsAdapter", "Binding test: ${testWithDeadline.test.title}")
     }
 
     override fun getItemCount(): Int = tests.size

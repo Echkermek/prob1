@@ -20,7 +20,6 @@ abstract class BaseFragment<VB : ViewBinding> : Fragment() {
 
     private val jobs = mutableListOf<Job>()
 
-    // ViewModel - будет инициализирован в onViewCreated
     protected lateinit var mainViewModel: MainViewModel
 
     abstract fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?): VB

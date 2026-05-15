@@ -4,6 +4,7 @@ package com.example.prob1.ui.profile
 import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,13 +23,30 @@ import com.example.prob1.StudentAuthActivity
 import com.example.prob1.base.BaseFragment
 import com.example.prob1.data.database.entities.UserDataEntity
 import com.example.prob1.data.repository.UserRepository
+import com.example.prob1.data.repository.StudentScoreManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragmentBinding>() {
 
     private val userId = FirebaseAuth.getInstance().currentUser?.uid
     private lateinit var userRepository: UserRepository
+    private val firestore = Firebase.firestore
+
+    // Данные для отображения
+    private var currentTotalScore = 0.0
+    private var currentGrade = 0
+    private var currentSemester = 1
+    private var gradeInfo = GradeInfo(0.0, 0.0, 0.0)
+
+    data class GradeInfo(
+        val min3: Double,
+        val min4: Double,
+        val min5: Double
+    )
 
     override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?): com.example.prob1.databinding.ProfileFragmentBinding {
         return com.example.prob1.databinding.ProfileFragmentBinding.inflate(inflater, container, false)
@@ -42,6 +60,14 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
             return
         }
 
+        // Синхронизируем баллы с текущим курсом
+        lifecycleScope.launch {
+            val scoreManager = StudentScoreManager()
+            scoreManager.syncStudentScoreWithCurrentCourse(userId!!)
+            // Загружаем данные после синхронизации
+            loadStudentScoreAndGrade()
+        }
+
         setupClickListeners()
         setupRefreshButton()
 
@@ -51,6 +77,116 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
         // Если данные не загружены - загружаем
         if (mainViewModel.userData.value == null) {
             mainViewModel.loadUserData(userId!!)
+        }
+    }
+
+    private suspend fun loadStudentScoreAndGrade() {
+        try {
+            val uid = userId ?: return
+
+            Log.d("ProfileFragment", "=== Loading student score and grade ===")
+
+            // 1. Получаем текущий курс студента
+            val scoreManager = StudentScoreManager()
+            val currentCourse = scoreManager.getCurrentCourseInfo(uid)
+
+            if (currentCourse != null) {
+                Log.d("ProfileFragment", "Current course ID: ${currentCourse.courseId}")
+                Log.d("ProfileFragment", "Current course name: ${currentCourse.courseName}")
+                Log.d("ProfileFragment", "Semester: ${currentCourse.semester}")
+
+                // 2. Получаем баллы из коллекции student_course_scores
+                val scoreDoc = firestore.collection("student_course_scores")
+                    .document("${uid}_${currentCourse.courseId}")
+                    .get()
+                    .await()
+
+                currentTotalScore = scoreDoc.getDouble("totalScore") ?: 0.0
+                currentSemester = currentCourse.semester
+
+                Log.d("ProfileFragment", "Loaded score: $currentTotalScore")
+
+                // 3. Получаем критерии оценок из course_grades
+                // ИСПРАВЛЕНО: используем "courseid" с маленькой буквы
+                val gradeSnapshot = firestore.collection("course_grades")
+                    .whereEqualTo("courseid", currentCourse.courseId)  // ← ИСПРАВЛЕНО!
+                    .limit(1)
+                    .get()
+                    .await()
+
+                Log.d("ProfileFragment", "Grade snapshot size: ${gradeSnapshot.size()}")
+
+                if (!gradeSnapshot.isEmpty) {
+                    val doc = gradeSnapshot.documents[0]
+                    Log.d("ProfileFragment", "Grade doc data: ${doc.data}")
+
+                    // Получаем значения, обрабатывая как числа (могут быть Long, Double или String)
+                    gradeInfo = GradeInfo(
+                        min3 = getDoubleFromAny(doc.get("min3")) ?: 0.0,
+                        min4 = getDoubleFromAny(doc.get("min4")) ?: 0.0,
+                        min5 = getDoubleFromAny(doc.get("min5")) ?: 0.0
+                    )
+
+                    Log.d("ProfileFragment", "Grade from Firestore - min3: ${gradeInfo.min3}, min4: ${gradeInfo.min4}, min5: ${gradeInfo.min5}")
+                } else {
+                    // Если не нашли по courseid, пробуем другие варианты
+                    Log.d("ProfileFragment", "No grade found with 'courseid', trying alternatives...")
+
+                    // Пробуем "courseId" с большой буквы
+                    val altSnapshot = firestore.collection("course_grades")
+                        .whereEqualTo("courseId", currentCourse.courseId)
+                        .limit(1)
+                        .get()
+                        .await()
+
+                    if (!altSnapshot.isEmpty) {
+                        val doc = altSnapshot.documents[0]
+                        gradeInfo = GradeInfo(
+                            min3 = getDoubleFromAny(doc.get("min3")) ?: 0.0,
+                            min4 = getDoubleFromAny(doc.get("min4")) ?: 0.0,
+                            min5 = getDoubleFromAny(doc.get("min5")) ?: 0.0
+                        )
+                        Log.d("ProfileFragment", "Grade from Firestore (alternative) - min3: ${gradeInfo.min3}, min4: ${gradeInfo.min4}, min5: ${gradeInfo.min5}")
+                    } else {
+                        // Дефолтные значения по семестру
+                        gradeInfo = when (currentSemester) {
+                            1 -> GradeInfo(76.0, 90.0, 106.0)
+                            2 -> GradeInfo(98.0, 112.0, 128.0)
+                            3 -> GradeInfo(43.0, 57.0, 73.0)
+                            else -> GradeInfo(50.0, 60.0, 70.0)
+                        }
+                        Log.d("ProfileFragment", "Using default grade info for semester $currentSemester")
+                    }
+                }
+
+                // 4. Вычисляем текущую оценку
+                currentGrade = when {
+                    currentTotalScore >= gradeInfo.min5 -> 5
+                    currentTotalScore >= gradeInfo.min4 -> 4
+                    currentTotalScore >= gradeInfo.min3 -> 3
+                    else -> 2
+                }
+
+                Log.d("ProfileFragment", "Final grade: $currentGrade (min3=${gradeInfo.min3}, min4=${gradeInfo.min4}, min5=${gradeInfo.min5})")
+
+                // Обновляем UI с новыми данными
+                updateScoreButton(binding.score, currentTotalScore, currentGrade)
+            } else {
+                Log.e("ProfileFragment", "Could not find current course")
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileFragment", "Error loading student score and grade", e)
+        }
+    }
+
+    // Вспомогательная функция для получения Double из любого типа
+    private fun getDoubleFromAny(value: Any?): Double? {
+        return when (value) {
+            is Double -> value
+            is Long -> value.toDouble()
+            is Int -> value.toDouble()
+            is String -> value.toDoubleOrNull()
+            else -> null
         }
     }
 
@@ -84,16 +220,19 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
         }
 
         binding.score.setOnClickListener {
-            val userData = mainViewModel.userData.value
-            if (userData != null) {
-                showGradeDialog(userData.totalScore, userData.grade, userData.semester)
-            }
+            showGradeDialog(currentTotalScore, currentGrade, currentSemester, gradeInfo)
         }
     }
 
     private fun setupRefreshButton() {
         binding.refreshButton.setOnClickListener {
             mainViewModel.refreshAllData(userId!!)
+            // Обновляем баллы и оценки
+            lifecycleScope.launch {
+                val scoreManager = StudentScoreManager()
+                scoreManager.syncStudentScoreWithCurrentCourse(userId!!)
+                loadStudentScoreAndGrade()
+            }
         }
     }
 
@@ -132,8 +271,8 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
         // Аватар
         updateAvatar(binding.avatar, userData.coins)
 
-        // Кнопка с баллами
-        updateScoreButton(binding.score, userData.totalScore, userData.grade)
+        // Кнопка с баллами (используем загруженные данные)
+        updateScoreButton(binding.score, currentTotalScore, currentGrade)
     }
 
     private fun updateCoinsWithAnimation(view: TextView, coins: Int) {
@@ -162,7 +301,7 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
         button.tag = mapOf("points" to totalPoints, "grade" to grade)
     }
 
-    private fun showGradeDialog(totalPoints: Double, grade: Int, semester: Int) {
+    private fun showGradeDialog(totalPoints: Double, grade: Int, semester: Int, gradeInfo: GradeInfo) {
         val gradeDesc = when (grade) {
             5 -> "Отлично"
             4 -> "Хорошо"
@@ -171,30 +310,12 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
             else -> "Нет данных"
         }
 
-        val criteria = when (semester) {
-            1 -> """
-            • 5 (Отлично): 106 – 125 баллов
-            • 4 (Хорошо): 90 – 105 баллов
-            • 3 (Удовл.): 76 – 89 баллов
-            • 2 (Неуд.): 75 и меньше баллов
+        val criteria = """
+            • 5 (Отлично): от ${gradeInfo.min5.toInt()} баллов
+            • 4 (Хорошо): от ${gradeInfo.min4.toInt()} баллов
+            • 3 (Удовл.): от ${gradeInfo.min3.toInt()} баллов
+            • 2 (Неуд.): менее ${gradeInfo.min3.toInt()} баллов
         """.trimIndent()
-
-            2 -> """
-            • 5 (Отлично): 128 – 147 баллов
-            • 4 (Хорошо): 112 – 127 баллов
-            • 3 (Удовл.): 98 – 111 баллов
-            • 2 (Неуд.): 97 и меньше баллов
-        """.trimIndent()
-
-            3 -> """
-            • 5 (Отлично): 73 – 92 баллов
-            • 4 (Хорошо): 57 – 72 баллов
-            • 3 (Удовл.): 43 – 56 баллов
-            • 2 (Неуд.): 42 и меньше баллов
-        """.trimIndent()
-
-            else -> "Критерии для семестра не найдены"
-        }
 
         val message = """
         Ваша оценка: $gradeDesc ($grade)
@@ -205,7 +326,7 @@ class ProfileFragment : BaseFragment<com.example.prob1.databinding.ProfileFragme
         
         Критерии оценки:
         $criteria
-    """.trimIndent()
+        """.trimIndent()
 
         AlertDialog.Builder(requireContext())
             .setTitle("Успеваемость")

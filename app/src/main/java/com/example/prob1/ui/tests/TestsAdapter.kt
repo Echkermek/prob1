@@ -5,8 +5,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.prob1.databinding.ItemTestBinding
 import com.example.prob1.data.Test
+import com.example.prob1.databinding.ItemTestBinding
 
 class TestsAdapter(
     private var deadlines: Map<String, String>,
@@ -14,7 +14,7 @@ class TestsAdapter(
 ) : RecyclerView.Adapter<TestsAdapter.TestViewHolder>() {
 
     private var tests: List<Test> = emptyList()
-    private var testCompletionStatus = mutableMapOf<String, Boolean>() // testId -> isCompleted
+    private var testCompletionStatus = mutableMapOf<String, Boolean>()
 
     class TestViewHolder(val binding: ItemTestBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -46,7 +46,7 @@ class TestsAdapter(
             if (isCompleted) {
                 testStatus.text = "Пройден"
                 testStatus.visibility = View.VISIBLE
-                testStatus.setTextColor(Color.parseColor("#4CAF50")) // Зеленый цвет
+                testStatus.setTextColor(Color.parseColor("#4CAF50"))
             } else {
                 testStatus.visibility = View.GONE
             }

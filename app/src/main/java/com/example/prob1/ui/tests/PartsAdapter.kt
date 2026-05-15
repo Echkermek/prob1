@@ -11,8 +11,10 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
-class PartsAdapter(private val onPartClick: (String, Boolean, Int, Boolean) -> Unit) :
-    RecyclerView.Adapter<PartsAdapter.PartViewHolder>() {
+class PartsAdapter(
+    private val onPartClick: (String, Boolean, Int, Boolean) -> Unit,
+    private val isDebtTest: Boolean = false  // ДОБАВЛЕНО: флаг для тестов-долгов
+) : RecyclerView.Adapter<PartsAdapter.PartViewHolder>() {
 
     private var parts = emptyList<Part>()
     private val db = Firebase.firestore
@@ -25,12 +27,13 @@ class PartsAdapter(private val onPartClick: (String, Boolean, Int, Boolean) -> U
                 if (adapterPosition != RecyclerView.NO_POSITION) {
                     val part = parts[adapterPosition]
 
-                    // === ИСПРАВЛЕННАЯ ПРОВЕРКА ===
+                    // ИСПРАВЛЕНАЯ ПРОВЕРКА с учётом isDebtTest
                     val hasNoLecture = part.idLectures.isNullOrEmpty() ||
                             part.idLectures == "not" ||
                             part.idLectures == "-"
 
-                    if (hasNoLecture) {
+                    // Если это тест-долг - пропускаем проверку лекции
+                    if (hasNoLecture || isDebtTest) {
                         // Сразу запускаем без проверки попыток и лекций
                         onPartClick(part.id, false, 0, part.enterAnswer)
                     } else {

@@ -1,4 +1,3 @@
-// com/example/prob1/ui/tests/TestPartsFragment.kt
 package com.example.prob1.ui.tests
 
 import android.content.Intent
@@ -23,6 +22,7 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
     private lateinit var lectionRepository: LectionRepository
 
     private var testId: String? = null
+    private var isDebtTest = false  // ← поле для флага
 
     private lateinit var partsAdapter: PartsAdapter
 
@@ -33,30 +33,35 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         testId = arguments?.getString("testId")
+        isDebtTest = arguments?.getBoolean("isDebtTest") ?: false
+        Log.d("TestPartsFragment", "onCreate - testId: $testId, isDebtTest: $isDebtTest")
     }
 
     override fun onViewCreatedSafe(savedInstanceState: Bundle?) {
         testRepository = TestRepository(requireContext())
         lectionRepository = LectionRepository(requireContext())
 
-        setupRecyclerView()
-        setupBackButton()
-        setupRefreshButton()
-
         if (userId == null) {
             showToast("Не авторизован")
             return
         }
 
+        setupRecyclerView()
+        setupBackButton()
+        setupRefreshButton()
         loadParts()
     }
 
     private fun setupRecyclerView() {
-        partsAdapter = PartsAdapter { partId, _, attempts, isManual ->
-            launchSafe {
-                checkAndStartPart(partId, attempts, isManual)
-            }
-        }
+        // ИСПРАВЛЕНО: указываем типы параметров и передаём isDebtTest
+        partsAdapter = PartsAdapter(
+            onPartClick = { partId: String, isPassed: Boolean, attempts: Int, isManual: Boolean ->
+                launchSafe {
+                    checkAndStartPart(partId, attempts, isManual)
+                }
+            },
+            isDebtTest = isDebtTest  // ← передаём флаг
+        )
 
         binding.partsRecycler.layoutManager = LinearLayoutManager(requireContext())
         binding.partsRecycler.adapter = partsAdapter
@@ -80,6 +85,13 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
             val lecId = part?.lecId
 
             val hasNoRealLecture = lecId.isNullOrEmpty() || lecId == "not" || lecId == "-"
+
+            // Если это тест-долг - пропускаем проверку лекции
+            if (isDebtTest) {
+                Log.d("TestPartsFragment", "Debt test - skipping lecture check")
+                startTest(partId, isManual)
+                return
+            }
 
             if (hasNoRealLecture) {
                 startTest(partId, isManual)
@@ -108,8 +120,6 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
             showToast("Ошибка проверки доступа")
         }
     }
-
-
 
     private fun loadParts(forceRefresh: Boolean = false) {
         launchSafe {
@@ -150,11 +160,11 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
             putExtra("testId", testId)
             putExtra("partId", partId)
             putExtra("isManual", isManual)
-            putExtra("isDebtTest", arguments?.getBoolean("isDebtTest") ?: false) // Передаем флаг дальше
+            putExtra("isDebtTest", isDebtTest)  // ← передаём флаг
         }
         startActivity(intent)
     }
-    
+
     private fun showLoading(show: Boolean) {
         binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
         binding.refreshButton.isEnabled = !show

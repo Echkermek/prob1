@@ -56,7 +56,6 @@
         android:visibility="gone"
         app:backgroundTint="#D32F2F"
         app:cornerRadius="12dp"
-        app:icon="@android:drawable/stat_notify_error"
         app:iconTint="#FFFFFF" />
 
     <!-- Индикатор загрузки -->

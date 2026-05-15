@@ -10,10 +10,13 @@ import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.prob1.LectionWebViewActivity
 import com.example.prob1.R
 import com.example.prob1.base.BaseFragment
+import com.example.prob1.data.Lection
 import com.example.prob1.data.Test
 import com.example.prob1.data.database.repository.TestRepository
+import com.example.prob1.data.repository.StudentScoreManager
 import com.example.prob1.ui.tests.TestWithDeadline
 import com.example.prob1.databinding.FragmentTestsBinding
 import com.google.firebase.auth.FirebaseAuth
@@ -29,26 +32,29 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
     private lateinit var testRepository: TestRepository
     private lateinit var testsAdapter: TestsAdapter
     private val deadlinesMap = mutableMapOf<String, String>()
+    private lateinit var studentScoreManager: StudentScoreManager
 
     private var currentSemester = 1
     private var currentCourseId: String? = null
     private var userGroupId: String? = null
     private var currentCourseName: String? = null
 
-    // Список ID тестов текущего курса
     private var currentCourseTestIds = mutableListOf<String>()
 
-    // Данные для долгов
-    private var debtInfoList = mutableListOf<DebtInfo>()
-    private val debtTestsByCourse = mutableMapOf<String, MutableList<TestWithDeadline>>()
+    // Только для отображения кнопки долгов
+    private var hasDebt = false
 
     data class DebtInfo(
         val courseId: String,
         val courseName: String,
-        val studentScore: Double,  // Реальный балл студента
-        val requiredScore: Double,  // Минимальный балл для удовлетворительно
+        val studentScore: Double,
+        val requiredScore: Double,
+        val min3: Double,
+        val min4: Double,
+        val min5: Double,
         val testsCompleted: Int,
-        val totalTests: Int
+        val totalTests: Int,
+        val lections: List<LectionWithInfo> = emptyList()
     )
 
     override fun inflateBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentTestsBinding {
@@ -57,6 +63,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
     override fun onViewCreatedSafe(savedInstanceState: Bundle?) {
         testRepository = TestRepository(requireContext())
+        studentScoreManager = StudentScoreManager()
 
         if (userId == null) {
             showToast(getString(R.string.not_authorized))
@@ -67,30 +74,23 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
         setupButtons()
         observeViewModel()
 
-        // Загружаем все данные
+        loadAllData()
+    }
+
+    override fun onResume() {
+        super.onResume()
         loadAllData()
     }
 
     private fun loadAllData() {
-        lifecycleScope.launch {
-            // 1. Загружаем группу пользователя
+        launchSafe {
+            showLoading(true)
             loadUserGroup()
-
-            // 2. Загружаем тесты текущего курса
-            if (currentCourseId != null) {
-                loadTestsForCurrentCourse()
-            }
-
-            // 3. Загружаем тесты через ViewModel
-            mainViewModel.loadUserData(userId!!)
-
-            // 4. Проверяем долги
-            checkDebts()
         }
     }
 
     private fun loadUserGroup() {
-        lifecycleScope.launch {
+        launchSafe {
             try {
                 val groupSnapshot = firestore.collection("usersgroup")
                     .whereEqualTo("userId", userId)
@@ -99,7 +99,9 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
                 if (groupSnapshot.isEmpty()) {
                     Log.e("TestsFragment", "User group not found")
-                    return@launch
+                    showEmptyState("Группа не найдена")
+                    showLoading(false)
+                    return@launchSafe
                 }
 
                 userGroupId = groupSnapshot.documents[0].getString("groupId")
@@ -107,58 +109,161 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
                 if (userGroupId != null) {
                     loadGroupCourse()
+                } else {
+                    showLoading(false)
                 }
 
                 loadDeadlines()
             } catch (e: Exception) {
                 Log.e("TestsFragment", "Error loading user group", e)
+                showEmptyState("Ошибка загрузки: ${e.message}")
+                showLoading(false)
             }
         }
     }
 
     private suspend fun loadGroupCourse() {
         try {
-            val groupSnapshot = firestore.collection("groups")
-                .document(userGroupId!!)
+            Log.d("TestsFragment", "=== loadGroupCourse ===")
+            Log.d("TestsFragment", "userGroupId: $userGroupId")
+
+            if (userGroupId == null) {
+                Log.e("TestsFragment", "userGroupId is null")
+                showLoading(false)
+                return
+            }
+
+            // Прямая проверка: ищем курс с completed = false
+            val activeCoursesSnapshot = firestore.collection("course_groups")
+                .whereEqualTo("groupId", userGroupId)
+                .whereEqualTo("completed", false)
                 .get()
                 .await()
 
-            currentCourseId = groupSnapshot.getString("courseId")
-            currentCourseName = groupSnapshot.getString("name")
-            Log.d("TestsFragment", "Current courseId: $currentCourseId, name: $currentCourseName")
+            Log.d("TestsFragment", "Active courses (completed=false): ${activeCoursesSnapshot.size()}")
+
+            for (doc in activeCoursesSnapshot.documents) {
+                val courseId = doc.getString("courseId")
+                val completed = doc.getBoolean("completed")
+                Log.d("TestsFragment", "  courseId: $courseId, completed: $completed")
+            }
+
+            if (activeCoursesSnapshot.documents.isNotEmpty()) {
+                val courseGroupDoc = activeCoursesSnapshot.documents[0]
+                val courseId = courseGroupDoc.getString("courseId")
+
+                if (courseId != null) {
+                    val courseDoc = firestore.collection("courses").document(courseId).get().await()
+                    currentCourseId = courseId
+                    currentCourseName = courseDoc.getString("name") ?: "Курс"
+                    Log.d("TestsFragment", "Active course found: $currentCourseId - $currentCourseName")
+
+                    loadTestsForCurrentCourse()
+                    mainViewModel.refreshAllData(userId!!)
+                    checkDebtsOnly()
+                    showLoading(false)
+                    return
+                }
+            }
+
+            // Если нет активных курсов с completed=false, ищем обычные
+            Log.d("TestsFragment", "No courses with completed=false, checking all courses...")
+
+            val allCourseGroupsSnapshot = firestore.collection("course_groups")
+                .whereEqualTo("groupId", userGroupId)
+                .get()
+                .await()
+
+            Log.d("TestsFragment", "Found ${allCourseGroupsSnapshot.size()} courses for group")
+
+            if (allCourseGroupsSnapshot.documents.isEmpty()) {
+                showEmptyState("Курсы не найдены для вашей группы")
+                showLoading(false)
+                return
+            }
+
+            var foundActiveCourse = false
+
+            for (courseGroupDoc in allCourseGroupsSnapshot.documents) {
+                val courseId = courseGroupDoc.getString("courseId")
+                if (courseId == null) continue
+
+                val courseDoc = firestore.collection("courses").document(courseId).get().await()
+                val isCourseCompleted = courseDoc.getBoolean("completed") ?: false
+
+                Log.d("TestsFragment", "Course: $courseId, completed: $isCourseCompleted")
+
+                if (!isCourseCompleted) {
+                    currentCourseId = courseId
+                    currentCourseName = courseDoc.getString("name") ?: "Курс"
+                    Log.d("TestsFragment", "Active course found: $currentCourseId")
+                    foundActiveCourse = true
+                    break
+                }
+            }
+
+            if (!foundActiveCourse) {
+                Log.d("TestsFragment", "All courses completed!")
+                showEmptyState("Все курсы успешно завершены! 🎉")
+                showLoading(false)
+                return
+            }
+
+            Log.d("TestsFragment", "Current courseId: '$currentCourseId'")
+
+            if (currentCourseId != null) {
+                loadTestsForCurrentCourse()
+                mainViewModel.refreshAllData(userId!!)
+            }
+
+            checkDebtsOnly()
+            showLoading(false)
+
         } catch (e: Exception) {
             Log.e("TestsFragment", "Error loading group course", e)
+            showEmptyState("Ошибка загрузки курса: ${e.message}")
+            showLoading(false)
         }
     }
 
     private suspend fun loadTestsForCurrentCourse() {
         try {
-            // Получаем все тесты, привязанные к текущему курсу из коллекции test_course
+            Log.d("TestsFragment", "=== loadTestsForCurrentCourse ===")
+            Log.d("TestsFragment", "currentCourseId: $currentCourseId")
+
+            if (currentCourseId == null) {
+                Log.d("TestsFragment", "currentCourseId is null, skipping")
+                return
+            }
+
+            currentCourseTestIds.clear()
+
             val testCourseSnapshot = firestore.collection("test_course")
                 .whereEqualTo("courseId", currentCourseId)
                 .get()
                 .await()
 
-            currentCourseTestIds.clear()
+            Log.d("TestsFragment", "test_course documents found: ${testCourseSnapshot.size()}")
+
             for (doc in testCourseSnapshot.documents) {
                 val testId = doc.getString("testId")
                 if (testId != null) {
                     currentCourseTestIds.add(testId)
+                    Log.d("TestsFragment", "Found testId: $testId")
                 }
             }
 
-            Log.d("TestsFragment", "Found ${currentCourseTestIds.size} tests for current course")
+            Log.d("TestsFragment", "Final currentCourseTestIds: $currentCourseTestIds")
+
         } catch (e: Exception) {
             Log.e("TestsFragment", "Error loading tests for course", e)
         }
     }
 
     private fun loadDeadlines() {
-        if (userGroupId == null) {
-            return
-        }
+        if (userGroupId == null) return
 
-        lifecycleScope.launch {
+        launchSafe {
             try {
                 val deadlinesSnapshot = firestore.collection("deadlines")
                     .whereEqualTo("groupId", userGroupId)
@@ -245,48 +350,44 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
     private fun setupButtons() {
         binding.debtButton.setOnClickListener {
-            showDebtsDialogWithTests()
+            if (hasDebt) {
+                // Открываем фрагмент с долгами
+                findNavController().navigate(
+                    R.id.action_navigation_tests_to_debtTestsFragment,
+                    Bundle().apply {
+                        putString("userId", userId)
+                    }
+                )
+            } else {
+                showToast("Нет активных долгов")
+            }
         }
 
         binding.refreshButton.setOnClickListener {
             loadAllData()
-            checkTestsCompletionStatus()
         }
     }
 
     private fun observeViewModel() {
         lifecycleScope.launch {
             mainViewModel.userData.collect { userData ->
-                userData?.let {
-                    currentSemester = it.semester
+                if (isAdded && userData != null) {
+                    currentSemester = userData.semester
                 }
             }
         }
 
         lifecycleScope.launch {
             mainViewModel.tests.collect { tests: List<Test> ->
-                if (isUiSafe) {
-                    // Фильтруем тесты: показываем только те, которые принадлежат текущему курсу
-                    val filteredTests = if (currentCourseTestIds.isNotEmpty()) {
-                        tests.filter { it.id in currentCourseTestIds }
-                    } else {
-                        tests
-                    }
-
-                    testsAdapter.submitList(filteredTests)
-
-                    if (filteredTests.isEmpty() && !mainViewModel.isLoading.value) {
-                        showEmptyState(getString(R.string.tests_not_found))
-                    } else {
-                        showContent()
-                    }
+                if (isAdded) {
+                    updateTestsDisplay(tests)
                 }
             }
         }
 
         lifecycleScope.launch {
             mainViewModel.isLoading.collect { isLoading: Boolean ->
-                if (isUiSafe) {
+                if (isAdded) {
                     binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
                     binding.refreshButton.isEnabled = !isLoading
                 }
@@ -295,7 +396,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
         lifecycleScope.launch {
             mainViewModel.error.collect { error: String? ->
-                if (error != null && isUiSafe) {
+                if (isAdded && error != null) {
                     showEmptyState(error)
                     mainViewModel.clearError()
                 }
@@ -303,208 +404,72 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
         }
     }
 
-    private fun checkTestsCompletionStatus() {
-        lifecycleScope.launch {
-            try {
-                val tests = mainViewModel.tests.value
-                if (tests.isEmpty()) return@launch
+    private fun updateTestsDisplay(tests: List<Test> = mainViewModel.tests.value) {
+        Log.d("TestsFragment", "=== updateTestsDisplay ===")
+        Log.d("TestsFragment", "currentCourseId: $currentCourseId")
+        Log.d("TestsFragment", "currentCourseTestIds: $currentCourseTestIds")
+        Log.d("TestsFragment", "All tests from ViewModel: ${tests.size}")
 
-                val completionStatus = mutableMapOf<String, Boolean>()
-
-                for (test in tests) {
-                    val isCompleted = isTestFullyCompleted(test.id)
-                    completionStatus[test.id] = isCompleted
-                }
-
-                testsAdapter.updateTestCompletionStatus(completionStatus)
-            } catch (e: Exception) {
-                Log.e("TestsFragment", "Error checking tests completion", e)
-            }
+        for (test in tests) {
+            Log.d("TestsFragment", "  Test: ${test.id} - ${test.title}")
         }
-    }
 
-    private suspend fun isTestFullyCompleted(testId: String): Boolean {
-        try {
-            val partsSnapshot = firestore.collection("tests")
-                .document(testId)
-                .collection("parts")
-                .get()
-                .await()
-
-            if (partsSnapshot.isEmpty) {
-                val attemptsSnapshot = firestore.collection("test_attempts")
-                    .whereEqualTo("userId", userId)
-                    .whereEqualTo("testId", testId)
-                    .whereEqualTo("status", "completed")
-                    .whereEqualTo("isPassed", true)
-                    .get()
-                    .await()
-                return attemptsSnapshot.documents.any { it.getBoolean("isPassed") == true }
-            }
-
-            val partIds = partsSnapshot.documents.mapNotNull { it.id }
-            if (partIds.isEmpty()) return false
-
-            val allGrades = firestore.collection("test_grades")
-                .whereEqualTo("userId", userId)
-                .get()
-                .await()
-
-            val completedParts = allGrades.documents
-                .filter { doc ->
-                    val docPartId = doc.getString("partId")
-                    val bestScore = doc.getDouble("bestScore") ?: 0.0
-                    docPartId in partIds && bestScore > 0
-                }
-                .mapNotNull { it.getString("partId") }
-                .toSet()
-
-            return completedParts.size == partIds.size
-        } catch (e: Exception) {
-            Log.e("TestsFragment", "Error checking test completion for $testId", e)
-            return false
+        val filteredTests = if (currentCourseTestIds.isNotEmpty()) {
+            tests.filter { it.id in currentCourseTestIds }
+        } else {
+            emptyList()
         }
-    }
 
-    // Проверяем долги - рассчитываем реальный балл студента
-    private fun checkDebts() {
-        lifecycleScope.launch {
-            try {
-                // Получаем все завершенные курсы студента
-                val completedCoursesSnapshot = firestore.collection("user_courses")
-                    .whereEqualTo("userId", userId)
-                    .whereEqualTo("completed", true)
-                    .get()
-                    .await()
-
-                debtInfoList.clear()
-                debtTestsByCourse.clear()
-
-                for (courseDoc in completedCoursesSnapshot.documents) {
-                    val courseId = courseDoc.getString("courseId") ?: continue
-                    val courseName = courseDoc.getString("name") ?: "Курс"
-
-                    // Получаем общий балл студента за этот курс из user_courses
-                    val studentTotalScore = courseDoc.getDouble("totalScore") ?: 0.0
-
-                    // Получаем пороговые значения для оценки "удовлетворительно" из коллекции course_grades
-                    val passingScore = getPassingScoreForCourse(courseId)
-
-                    // Если оценка неудовлетворительная (2) - это долг
-                    if (studentTotalScore < passingScore) {
-                        // Получаем тесты этого курса
-                        val testCourseSnapshot = firestore.collection("test_course")
-                            .whereEqualTo("courseId", courseId)
-                            .get()
-                            .await()
-
-                        val testIds = testCourseSnapshot.documents.mapNotNull { it.getString("testId") }
-                        val courseTests = mainViewModel.tests.value.filter { it.id in testIds }
-                        if (courseTests.isEmpty()) continue
-
-                        debtInfoList.add(
-                            DebtInfo(
-                                courseId = courseId,
-                                courseName = courseName,
-                                studentScore = studentTotalScore,
-                                requiredScore = passingScore,
-                                testsCompleted = 0, // Можно рассчитать из test_grades
-                                totalTests = courseTests.size
-                            )
-                        )
-
-                        // Сохраняем тесты этого курса для отображения в диалоге
-                        debtTestsByCourse.getOrPut(courseId) { mutableListOf() }.addAll(courseTests)
-                    }
-                }
-
-                if (isUiSafe) {
-                    if (debtInfoList.isNotEmpty()) {
-                        binding.debtButton.visibility = View.VISIBLE
-                        binding.debtButton.text = getString(R.string.debts_count, debtInfoList.size)
-                    } else {
-                        binding.debtButton.visibility = View.GONE
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("TestsFragment", "Error checking debts", e)
-                if (isUiSafe) {
-                    binding.debtButton.visibility = View.GONE
-                }
-            }
+        Log.d("TestsFragment", "Filtered tests: ${filteredTests.size}")
+        for (test in filteredTests) {
+            Log.d("TestsFragment", "  Filtered: ${test.id} - ${test.title}")
         }
-    }
 
-    // Получаем проходной балл для курса (минимальный для "удовлетворительно")
-    private suspend fun getPassingScoreForCourse(courseId: String): Double {
-        return try {
-            // Пытаемся получить из коллекции course_grades
-            val gradeSnapshot = firestore.collection("course_grades")
-                .whereEqualTo("courseId", courseId)
-                .whereEqualTo("grade", 3) // Удовлетворительно
-                .limit(1)
-                .get()
-                .await()
+        testsAdapter.submitList(filteredTests)
 
-            if (!gradeSnapshot.isEmpty) {
-                gradeSnapshot.documents[0].getDouble("minScore") ?: 0.0
+        if (filteredTests.isEmpty() && !mainViewModel.isLoading.value) {
+            if (currentCourseId != null) {
+                showEmptyState("Тесты не найдены для текущего курса")
             } else {
-                // Дефолтные значения по семестрам
-                when (currentSemester) {
-                    1 -> 76.0
-                    2 -> 98.0
-                    3 -> 43.0
-                    else -> 50.0
-                }
+                showEmptyState("Нет активного курса")
             }
-        } catch (e: Exception) {
-            Log.e("TestsFragment", "Error getting passing score", e)
-            50.0
+        } else {
+            showContent()
         }
     }
 
-    private fun showDebtsDialogWithTests() {
-        if (debtInfoList.isEmpty()) {
-            showToast(getString(R.string.no_active_debts))
-            return
-        }
+    // Только проверяем наличие долгов, не загружаем их данные
+    private suspend fun checkDebtsOnly() {
+        try {
+            val uid = userId ?: return
+            Log.d("TestsFragment", "=== CHECK DEBTS ONLY for userId: $uid ===")
 
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_debts_with_tests, null)
-        val recyclerView = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.debtTestsRecycler)
-        val messageText = dialogView.findViewById<TextView>(R.id.debtMessageText)
+            val debtSnapshot = firestore.collection("dolg")
+                .whereEqualTo("studentId", uid)
+                .whereEqualTo("status", "active")
+                .get()
+                .await()
 
-        val debtInfo = debtInfoList.first()
-        val debtTests = debtTestsByCourse[debtInfo.courseId].orEmpty()
-        val df = DecimalFormat("#.##")
-        val infoMessage = """
-            Курс: ${debtInfo.courseName}
-            Ваш балл: ${df.format(debtInfo.studentScore)}
-            Требуется: ${df.format(debtInfo.requiredScore)} баллов для удовлетворительной оценки
-            
-            Список тестов, которые необходимо сдать:
-        """.trimIndent()
+            hasDebt = debtSnapshot.documents.isNotEmpty()
 
-        messageText.text = infoMessage
-
-        val debtTestsAdapter = DebtTestsAdapter(debtTests.distinctBy { it.id }) { testId ->
-            launchSafe {
-                openTestByRealStructure(testId, true)
+            if (hasDebt) {
+                binding.debtButton.visibility = View.VISIBLE
+                binding.debtButton.text = "Долги"
+                Log.d("TestsFragment", "Has debts, showing button")
+            } else {
+                binding.debtButton.visibility = View.GONE
+                Log.d("TestsFragment", "No debts")
             }
+
+        } catch (e: Exception) {
+            Log.e("TestsFragment", "Error checking debts", e)
+            binding.debtButton.visibility = View.GONE
         }
+    }
 
-        recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
-        recyclerView.adapter = debtTestsAdapter
-
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle(getString(R.string.your_debts))
-            .setView(dialogView)
-            .setPositiveButton("OK") { dialogInterface, _ ->
-                dialogInterface.dismiss()
-            }
-            .setCancelable(true)
-            .create()
-
-        dialog.show()
+    private fun showLoading(show: Boolean) {
+        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.refreshButton.isEnabled = !show
     }
 
     private fun showEmptyState(message: String) {

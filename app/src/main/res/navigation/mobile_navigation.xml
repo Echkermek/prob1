@@ -26,6 +26,11 @@
         <action
             android:id="@+id/action_navigation_tests_to_testPartsFragment"
             app:destination="@id/testPartsFragment" />
+
+        <!-- ДОБАВЬТЕ ЭТОТ ACTION -->
+        <action
+            android:id="@+id/action_navigation_tests_to_debtTestsFragment"
+            app:destination="@id/debtTestsFragment" />
     </fragment>
 
     <fragment
@@ -49,6 +54,12 @@
             android:name="partId"
             app:argType="string" />
     </activity>
+
+    <fragment
+        android:id="@+id/debtTestsFragment"
+        android:name="com.example.prob1.ui.tests.DebtTestsFragment"
+        android:label="Долги"
+        tools:layout="@layout/fragment_debt_tests" />
 
     <fragment
         android:id="@+id/navigation_browse"

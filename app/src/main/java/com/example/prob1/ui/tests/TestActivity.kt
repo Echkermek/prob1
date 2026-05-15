@@ -36,6 +36,9 @@ class TestActivity : AppCompatActivity() {
 
     private var isDebtTest = false
 
+    private var debtCourseId: String? = null  // ID курса, по которому долг
+    private var debtCourseName: String? = null  // Название курса-долга
+
     private lateinit var studentScoreManager: StudentScoreManager
 
     private var correctAnswers = 0
@@ -76,6 +79,13 @@ class TestActivity : AppCompatActivity() {
         testId = intent.getStringExtra("testId")
         isDebtTest = intent.getBooleanExtra("isDebtTest", false)
 
+        // ЕСЛИ ЭТО ТЕСТ-ДОЛГ - ЗАГРУЖАЕМ ДАННЫЕ О ДОЛГЕ
+        if (isDebtTest) {
+            lifecycleScope.launch {
+                loadDebtCourseInfo()
+            }
+        }
+
         lifecycleScope.launch {
             val uid = userId ?: return@launch
             val currentCourse = studentScoreManager.getCurrentCourseInfo(uid)
@@ -99,63 +109,29 @@ class TestActivity : AppCompatActivity() {
         checkTestAccess()
     }
 
-    private suspend fun updateStudentTotalScore() {
+    // ДОБАВЬТЕ НОВЫЙ МЕТОД ДЛЯ ЗАГРУЗКИ ДАННЫХ О ДОЛГЕ
+    private suspend fun loadDebtCourseInfo() {
         try {
             val uid = userId ?: return
+            Log.d("TestActivity", "=== LOAD DEBT COURSE INFO ===")
 
-            // 1. Получаем текущий курс студента
-            val currentCourse = studentScoreManager.getCurrentCourseInfo(uid)
-            if (currentCourse == null) {
-                Log.e("TestActivity", "Could not get current course info")
-                return
-            }
-
-            // 2. Если курс завершён - не обновляем баллы
-            if (currentCourse.isCompleted) {
-                Log.d("TestActivity", "Course ${currentCourse.courseId} is completed, skipping score update")
-                return
-            }
-
-            // 3. Получаем данные пользователя (имя, фамилия)
-            val userDoc = db.collection("users").document(uid).get().await()
-            val firstName = userDoc.getString("name") ?: ""
-            val lastName = userDoc.getString("surname") ?: ""
-
-            // 4. Получаем все лучшие результаты студента по тестам из test_grades
-            val gradesSnapshot = db.collection("test_grades")
-                .whereEqualTo("userId", uid)
+            val debtSnapshot = db.collection("dolg")
+                .whereEqualTo("studentId", uid)
+                .whereEqualTo("status", "active")
                 .get()
                 .await()
 
-            // 5. Суммируем все баллы
-            var totalScore = 0.0
-            for (doc in gradesSnapshot.documents) {
-                val bestScore = doc.getDouble("bestScore") ?: 0.0
-                totalScore += bestScore
-                Log.d("TestActivity", "Test part ${doc.getString("partId")} bestScore: $bestScore")
-            }
-
-            Log.d("TestActivity", "Total score for user $uid in course ${currentCourse.courseId}: $totalScore")
-
-            // 6. Сохраняем в коллекцию student_course_scores
-            val success = studentScoreManager.saveStudentScore(
-                userId = uid,
-                firstName = firstName,
-                lastName = lastName,
-                courseId = currentCourse.courseId,
-                courseName = currentCourse.courseName,
-                semester = currentCourse.semester,
-                totalScore = totalScore
-            )
-
-            if (success) {
-                Log.d("TestActivity", "Successfully saved total score to student_course_scores")
+            // ИСПРАВЛЕНО: используем debtSnapshot.isEmpty (без скобок)
+            if (!debtSnapshot.isEmpty) {
+                val debtDoc = debtSnapshot.documents[0]
+                debtCourseId = debtDoc.getString("courseId")
+                debtCourseName = debtDoc.getString("courseName")
+                Log.d("TestActivity", "Debt course loaded: $debtCourseId - $debtCourseName")
             } else {
-                Log.e("TestActivity", "Failed to save total score to student_course_scores")
+                Log.e("TestActivity", "No active debt found for user $uid")
             }
-
         } catch (e: Exception) {
-            Log.e("TestActivity", "Failed to update student total score", e)
+            Log.e("TestActivity", "Error loading debt course info", e)
         }
     }
 
@@ -490,7 +466,6 @@ class TestActivity : AppCompatActivity() {
             correctAnswers++
         }
         selectedAnswers[questions[currentQuestionIndex].id] = isCorrect
-        // Убрали вызов moveToNextQuestion() - теперь это делает кнопка "Далее"
     }
 
     fun onManualAnswerSubmitted(questionId: String, answer: String) {
@@ -566,7 +541,6 @@ class TestActivity : AppCompatActivity() {
     }
 
     private suspend fun finishInputTest() {
-        // Получаем ответ из manualAnswers
         val userAnswer = manualAnswers.values.firstOrNull() ?: ""
         val questionId = manualAnswers.keys.firstOrNull() ?: ""
 
@@ -574,8 +548,8 @@ class TestActivity : AppCompatActivity() {
         Log.d("TestActivity", "userAnswer: $userAnswer")
         Log.d("TestActivity", "questionId: $questionId")
         Log.d("TestActivity", "attemptDocId: $attemptDocId")
+        Log.d("TestActivity", "isDebtTest: $isDebtTest")
 
-        // Получаем текст вопроса из questionRawData
         val questionRaw = questionRawData[questionId]
         val questionText = questionRaw?.get("text") as? String ?: ""
 
@@ -601,6 +575,11 @@ class TestActivity : AppCompatActivity() {
 
             db.collection("test_attempts").document(attemptId).update(updates).await()
             Log.d("TestActivity", "Updated attempt $attemptId with answer: $userAnswer")
+        }
+
+        if (isDebtTest) {
+            Log.d("TestActivity", "Updating total score for debt test")
+            updateStudentTotalScore()
         }
 
         showWaitingForReviewDialog()
@@ -671,7 +650,6 @@ class TestActivity : AppCompatActivity() {
 
             addCoinsForFirstTestPassing()
             updateAttemptDoc(finalScore, rawScore)
-
             updateBestGrade(finalScore)
             updateStudentCourseScore()
             updateStudentTotalScore()
@@ -810,6 +788,7 @@ class TestActivity : AppCompatActivity() {
 
         return matches.coerceAtMost(maxPoints)
     }
+
     fun getTestType(): String? = testType
 
     private fun showComplexResult(raw: Int, maxRaw: Int, final: Int, maxFinal: Int) {
@@ -858,7 +837,6 @@ class TestActivity : AppCompatActivity() {
             "timestamp" to FieldValue.serverTimestamp()
         )
 
-        // Добавляем названия для input-тестов
         if (isInputOnlyTest) {
             try {
                 val testDoc = db.collection("tests").document(testId!!).get().await()
@@ -928,27 +906,191 @@ class TestActivity : AppCompatActivity() {
         }
     }
 
+    // ОБНОВЛЕННЫЙ МЕТОД updateStudentTotalScore
+    // TestActivity.kt - исправленный метод updateStudentTotalScore
 
+    private suspend fun updateStudentTotalScore() {
+        try {
+            val uid = userId ?: return
+            Log.d("TestActivity", "=== updateStudentTotalScore START ===")
+            Log.d("TestActivity", "isDebtTest: $isDebtTest")
+
+            // Определяем, для какого курса обновляем баллы
+            val targetCourseId: String
+            val targetCourseName: String
+
+            if (isDebtTest && debtCourseId != null) {
+                targetCourseId = debtCourseId!!
+                targetCourseName = debtCourseName ?: "Курс"
+                Log.d("TestActivity", "Updating score for DEBT course: $targetCourseId")
+            } else {
+                val currentCourse = studentScoreManager.getCurrentCourseInfo(uid)
+                if (currentCourse == null) {
+                    Log.e("TestActivity", "Could not get current course info")
+                    return
+                }
+                targetCourseId = currentCourse.courseId
+                targetCourseName = currentCourse.courseName
+                Log.d("TestActivity", "Updating score for CURRENT course: $targetCourseId")
+            }
+
+            // Получаем список тестов для этого курса
+            val courseTests = db.collection("test_course")
+                .whereEqualTo("courseId", targetCourseId)
+                .get()
+                .await()
+
+            val testIdsInCourse = courseTests.documents.mapNotNull { it.getString("testId") }.toSet()
+            Log.d("TestActivity", "Tests in course $targetCourseId: $testIdsInCourse")
+
+            // Получаем все лучшие результаты студента
+            val gradesSnapshot = db.collection("test_grades")
+                .whereEqualTo("userId", uid)
+                .get()
+                .await()
+
+            // Суммируем баллы только за тесты этого курса
+            var totalScore = 0.0
+            for (doc in gradesSnapshot.documents) {
+                val testId = doc.getString("testId")
+                if (testId != null && testId in testIdsInCourse) {
+                    val bestScore = doc.getDouble("bestScore") ?: 0.0
+                    totalScore += bestScore
+                    Log.d("TestActivity", "Added bestScore: $bestScore from test: $testId")
+                }
+            }
+
+            Log.d("TestActivity", "Total score for course $targetCourseId: $totalScore")
+
+            // Сохраняем в student_course_scores
+            val docId = "${uid}_${targetCourseId}"
+            val data = hashMapOf(
+                "userId" to uid,
+                "totalScore" to totalScore,
+                "courseId" to targetCourseId,
+                "courseName" to targetCourseName,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+
+            val userDoc = db.collection("users").document(uid).get().await()
+            data["firstName"] = userDoc.getString("name") ?: ""
+            data["lastName"] = userDoc.getString("surname") ?: ""
+
+            db.collection("student_course_scores")
+                .document(docId)
+                .set(data)
+                .await()
+
+            Log.d("TestActivity", "Successfully updated total score to $totalScore for course $targetCourseId")
+
+        } catch (e: Exception) {
+            Log.e("TestActivity", "Failed to update student total score", e)
+        }
+    }
+
+    // НОВЫЙ МЕТОД ДЛЯ ОБНОВЛЕНИЯ avgScore В КОЛЛЕКЦИИ dolg
+    // TestActivity.kt - полностью исправленный метод updateDebtAvgScore
+
+    // TestActivity.kt - исправленный метод updateDebtAvgScore
+
+    private suspend fun updateDebtAvgScore(uid: String, newTotalScore: Double) {
+        try {
+            Log.d("TestActivity", "=== UPDATE DEBT AVG SCORE ===")
+            Log.d("TestActivity", "newTotalScore passed: $newTotalScore")
+            Log.d("TestActivity", "debtCourseId: $debtCourseId")
+
+            // Получаем актуальный totalScore из student_course_scores
+            val docId = "${uid}_${debtCourseId}"
+            val scoreDoc = db.collection("student_course_scores")
+                .document(docId)
+                .get()
+                .await()
+
+            val actualTotalScore = if (scoreDoc.exists()) {
+                scoreDoc.getDouble("totalScore") ?: 0.0
+            } else {
+                newTotalScore
+            }
+
+            Log.d("TestActivity", "Actual totalScore from student_course_scores: $actualTotalScore")
+
+            // Находим активный долг пользователя
+            val debtSnapshot = db.collection("dolg")
+                .whereEqualTo("studentId", uid)
+                .whereEqualTo("status", "active")
+                .get()
+                .await()
+
+            if (!debtSnapshot.isEmpty) {
+                val debtDoc = debtSnapshot.documents[0]
+
+                Log.d("TestActivity", "Before update - avgScore: ${debtDoc.getDouble("avgScore")}")
+
+                // Обновляем avgScore в dolg (берем актуальное значение из student_course_scores)
+                val updates = hashMapOf<String, Any>(
+                    "avgScore" to actualTotalScore,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+
+                // Проверяем, достиг ли студент проходного балла
+                val courseDoc = db.collection("courses")
+                    .document(debtCourseId!!)
+                    .get()
+                    .await()
+                val minPassScore = courseDoc.getDouble("min3") ?: 40.0
+
+                if (actualTotalScore >= minPassScore) {
+                    updates["status"] = "resolved"
+                    updates["resolvedAt"] = FieldValue.serverTimestamp()
+                    Log.d("TestActivity", "Debt resolved! Score $actualTotalScore >= $minPassScore")
+                }
+
+                debtDoc.reference.update(updates).await()
+                Log.d("TestActivity", "Updated debt: avgScore=$actualTotalScore, status=${updates["status"] ?: "active"}")
+
+            } else {
+                Log.e("TestActivity", "No active debt found for user $uid")
+            }
+        } catch (e: Exception) {
+            Log.e("TestActivity", "Error updating debt avgScore", e)
+        }
+    }
+
+    // ОБНОВЛЕННЫЙ МЕТОД updateStudentCourseScore
     private suspend fun updateStudentCourseScore() {
         try {
             val uid = userId ?: return
             Log.d("TestActivity", "=== updateStudentCourseScore START ===")
+            Log.d("TestActivity", "isDebtTest: $isDebtTest")
 
-            val currentCourse = studentScoreManager.getCurrentCourseInfo(uid)
-            if (currentCourse == null) {
-                Log.e("TestActivity", "currentCourse is NULL")
-                return
+            val targetCourseId: String
+            val targetCourseName: String
+
+            if (isDebtTest && debtCourseId != null) {
+                targetCourseId = debtCourseId!!
+                targetCourseName = debtCourseName ?: "Курс"
+                Log.d("TestActivity", "Updating for DEBT course: $targetCourseId")
+            } else {
+                val currentCourse = studentScoreManager.getCurrentCourseInfo(uid)
+                if (currentCourse == null) {
+                    Log.e("TestActivity", "currentCourse is NULL")
+                    return
+                }
+                targetCourseId = currentCourse.courseId
+                targetCourseName = currentCourse.courseName
+                Log.d("TestActivity", "Updating for CURRENT course: $targetCourseId")
             }
-
-            Log.d("TestActivity", "currentCourse.courseId: ${currentCourse.courseId}")
-            Log.d("TestActivity", "currentCourse.courseName: ${currentCourse.courseName}")
-            Log.d("TestActivity", "currentCourse.isCompleted: ${currentCourse.isCompleted}")
 
             val userDoc = db.collection("users").document(uid).get().await()
             val firstName = userDoc.getString("name") ?: ""
             val lastName = userDoc.getString("surname") ?: ""
 
-            Log.d("TestActivity", "User: $firstName $lastName")
+            val testCourseSnapshot = db.collection("test_course")
+                .whereEqualTo("courseId", targetCourseId)
+                .get()
+                .await()
+
+            val testIdsInCourse = testCourseSnapshot.documents.mapNotNull { it.getString("testId") }.toSet()
 
             val gradesSnapshot = db.collection("test_grades")
                 .whereEqualTo("userId", uid)
@@ -957,41 +1099,33 @@ class TestActivity : AppCompatActivity() {
 
             var totalScore = 0.0
             for (doc in gradesSnapshot.documents) {
-                val bestScore = doc.getDouble("bestScore") ?: 0.0
-                totalScore += bestScore
-                Log.d("TestActivity", "Added bestScore: $bestScore from part ${doc.getString("partId")}")
+                val testId = doc.getString("testId")
+                if (testId != null && testId in testIdsInCourse) {
+                    val bestScore = doc.getDouble("bestScore") ?: 0.0
+                    totalScore += bestScore
+                    Log.d("TestActivity", "Added bestScore: $bestScore from test: $testId")
+                }
             }
 
             Log.d("TestActivity", "Total score calculated: $totalScore")
 
-            // Прямое сохранение в Firestore без проверки
-            val docId = "${uid}_${currentCourse.courseId}"
+            val docId = "${uid}_${targetCourseId}"
             val data = hashMapOf(
                 "userId" to uid,
                 "firstName" to firstName,
                 "lastName" to lastName,
                 "totalScore" to totalScore,
-                "courseId" to currentCourse.courseId,
-                "courseName" to currentCourse.courseName,
-                "semester" to currentCourse.semester,
-                "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                "courseId" to targetCourseId,
+                "courseName" to targetCourseName,
+                "updatedAt" to FieldValue.serverTimestamp()
             )
-
-            Log.d("TestActivity", "Saving to Firestore - docId: $docId")
-            Log.d("TestActivity", "Data: $data")
 
             db.collection("student_course_scores")
                 .document(docId)
                 .set(data)
-                .addOnSuccessListener {
-                    Log.d("TestActivity", "✅ SUCCESS: Saved to student_course_scores")
-                }
-                .addOnFailureListener { e ->
-                    Log.e("TestActivity", "❌ FAILED: Error saving to student_course_scores", e)
-                }
                 .await()
 
-            Log.d("TestActivity", "=== updateStudentCourseScore END ===")
+            Log.d("TestActivity", "Successfully saved to student_course_scores")
 
         } catch (e: Exception) {
             Log.e("TestActivity", "Exception in updateStudentCourseScore", e)

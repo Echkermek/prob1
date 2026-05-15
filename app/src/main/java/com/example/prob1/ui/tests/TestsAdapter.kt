@@ -64,6 +64,8 @@ class TestsAdapter(
         notifyDataSetChanged()
     }
 
+    fun getCurrentList(): List<Test> = tests
+
     fun updateDeadlines(newDeadlines: Map<String, String>) {
         this.deadlines = newDeadlines
         notifyDataSetChanged()

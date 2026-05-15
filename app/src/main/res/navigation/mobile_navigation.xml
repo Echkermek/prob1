@@ -27,7 +27,6 @@
             android:id="@+id/action_navigation_tests_to_testPartsFragment"
             app:destination="@id/testPartsFragment" />
 
-        <!-- ДОБАВЬТЕ ЭТОТ ACTION -->
         <action
             android:id="@+id/action_navigation_tests_to_debtTestsFragment"
             app:destination="@id/debtTestsFragment" />
@@ -37,29 +36,61 @@
         android:id="@+id/testPartsFragment"
         android:name="com.example.prob1.ui.tests.TestPartsFragment"
         android:label="Части теста">
+
         <argument
             android:name="testId"
             app:argType="string" />
 
-        <action
-            android:id="@+id/action_testPartsFragment_to_testActivity"
-            app:destination="@id/testActivity" />
+        <argument
+            android:name="isDebtTest"
+            android:defaultValue="false"
+            app:argType="boolean" />
+
+        <argument
+            android:name="debtCourseId"
+            android:defaultValue=""
+            app:argType="string" />
+
+        <argument
+            android:name="debtCourseName"
+            android:defaultValue=""
+            app:argType="string" />
     </fragment>
 
     <activity
         android:id="@+id/testActivity"
         android:name="com.example.prob1.ui.tests.TestActivity"
         android:label="Тест">
+
+        <argument
+            android:name="testId"
+            app:argType="string" />
+
         <argument
             android:name="partId"
             app:argType="string" />
+
+        <argument
+            android:name="isManual"
+            android:defaultValue="false"
+            app:argType="boolean" />
+
+        <argument
+            android:name="isDebtTest"
+            android:defaultValue="false"
+            app:argType="boolean" />
     </activity>
 
     <fragment
         android:id="@+id/debtTestsFragment"
         android:name="com.example.prob1.ui.tests.DebtTestsFragment"
         android:label="Долги"
-        tools:layout="@layout/fragment_debt_tests" />
+        tools:layout="@layout/fragment_debt_tests">
+
+        <action
+            android:id="@+id/action_debtTestsFragment_to_testPartsFragment"
+            app:destination="@id/testPartsFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/navigation_browse"

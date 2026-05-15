@@ -205,7 +205,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
             if (!foundActiveCourse) {
                 Log.d("TestsFragment", "All courses completed!")
-                showEmptyState("Все курсы успешно завершены! 🎉")
+                showEmptyState("Все курсы завершены!")
                 showLoading(false)
                 return
             }
@@ -237,6 +237,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
                 return
             }
 
+            // Очищаем список перед загрузкой
             currentCourseTestIds.clear()
 
             val testCourseSnapshot = firestore.collection("test_course")
@@ -246,34 +247,59 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
 
             Log.d("TestsFragment", "test_course documents found: ${testCourseSnapshot.size()}")
 
+            val testIds = mutableListOf<String>()
             for (doc in testCourseSnapshot.documents) {
                 val testId = doc.getString("testId")
-                if (testId != null) {
-                    currentCourseTestIds.add(testId)
+                if (testId != null && !testIds.contains(testId)) {  // Проверка на дубликаты
+                    testIds.add(testId)
                     Log.d("TestsFragment", "Found testId: $testId")
                 }
             }
 
+            currentCourseTestIds.addAll(testIds)
             Log.d("TestsFragment", "Final currentCourseTestIds: $currentCourseTestIds")
-            currentCourseTests = currentCourseTestIds.mapNotNull { testId ->
+
+            // Загружаем тесты
+            val loadedTests = mutableListOf<Test>()
+            for (testId in currentCourseTestIds) {
                 try {
                     val testDoc = firestore.collection("tests").document(testId).get().await()
-                    if (!testDoc.exists()) return@mapNotNull null
-                    Test(
-                        id = testDoc.id,
-                        title = testDoc.getString("title") ?: "",
-                        num = testDoc.getLong("num")?.toInt() ?: 0,
-                        semester = testDoc.getLong("semester")?.toInt() ?: 1,
-                        isAvailable = testDoc.getBoolean("isAvailable") ?: true,
-                        hasParts = testDoc.getBoolean("hasParts") ?: true
-                    )
+                    if (testDoc.exists()) {
+                        val test = Test(
+                            id = testDoc.id,
+                            title = testDoc.getString("title") ?: "",
+                            num = testDoc.getLong("num")?.toInt() ?: 0,
+                            semester = testDoc.getLong("semester")?.toInt() ?: 1,
+                            isAvailable = testDoc.getBoolean("isAvailable") ?: true,
+                            hasParts = testDoc.getBoolean("hasParts") ?: true
+                        )
+                        // Проверяем, нет ли уже такого теста
+                        if (loadedTests.none { it.id == test.id }) {
+                            loadedTests.add(test)
+                        }
+                    }
                 } catch (e: Exception) {
                     Log.e("TestsFragment", "Error loading test by id: $testId", e)
-                    currentCourseTests = emptyList()
-                    null
                 }
-            }.sortedBy { it.num }
-            updateTestsDisplay(currentCourseTests)
+            }
+
+            currentCourseTests = loadedTests.sortedBy { it.num }
+
+            // Обновляем адаптер только если текущие тесты не пустые
+            if (currentCourseTests.isNotEmpty()) {
+                val uniqueTests = currentCourseTests.distinctBy { it.id }
+                testsAdapter.submitList(uniqueTests)
+
+                if (uniqueTests.isEmpty()) {
+                    if (currentCourseId != null) {
+                        showEmptyState("Тесты не найдены для текущего курса")
+                    } else {
+                        showEmptyState("Нет активного курса")
+                    }
+                } else {
+                    showContent()
+                }
+            }
 
         } catch (e: Exception) {
             Log.e("TestsFragment", "Error loading tests for course", e)
@@ -401,8 +427,23 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
         lifecycleScope.launch {
             mainViewModel.tests.collect { tests: List<Test> ->
                 if (isAdded) {
+                    // Обновляем отображение только если currentCourseTests пуст
+                    // Иначе используем уже загруженные тесты
                     if (currentCourseTests.isEmpty()) {
                         updateTestsDisplay(tests)
+                    } else {
+                        // Используем уже загруженные тесты
+                        val uniqueTests = currentCourseTests.distinctBy { it.id }
+                        testsAdapter.submitList(uniqueTests)
+                        if (uniqueTests.isEmpty()) {
+                            if (currentCourseId != null) {
+                                showEmptyState("Тесты не найдены для текущего курса")
+                            } else {
+                                showEmptyState("Нет активного курса")
+                            }
+                        } else {
+                            showContent()
+                        }
                     }
                 }
             }
@@ -448,9 +489,16 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
             Log.d("TestsFragment", "  Filtered: ${test.id} - ${test.title}")
         }
 
-        testsAdapter.submitList(filteredTests)
+        // ИСПРАВЛЕНИЕ: Используем distinctBy для удаления дубликатов по id
+        val uniqueTests = filteredTests.distinctBy { it.id }
 
-        if (filteredTests.isEmpty() && !mainViewModel.isLoading.value) {
+        if (uniqueTests.size != filteredTests.size) {
+            Log.w("TestsFragment", "Duplicates found! Original: ${filteredTests.size}, Unique: ${uniqueTests.size}")
+        }
+
+        testsAdapter.submitList(uniqueTests)
+
+        if (uniqueTests.isEmpty() && !mainViewModel.isLoading.value) {
             if (currentCourseId != null) {
                 showEmptyState("Тесты не найдены для текущего курса")
             } else {

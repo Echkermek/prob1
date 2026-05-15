@@ -160,7 +160,9 @@ class TestPartsFragment : BaseFragment<FragmentTestPartsBinding>() {
             putExtra("testId", testId)
             putExtra("partId", partId)
             putExtra("isManual", isManual)
-            putExtra("isDebtTest", isDebtTest)  // ← передаём флаг
+            putExtra("isDebtTest", isDebtTest)
+            putExtra("debtCourseId", arguments?.getString("debtCourseId"))
+            putExtra("debtCourseName", arguments?.getString("debtCourseName"))
         }
         startActivity(intent)
     }

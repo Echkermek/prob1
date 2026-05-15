@@ -40,6 +40,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
     private var currentCourseName: String? = null
 
     private var currentCourseTestIds = mutableListOf<String>()
+    private var currentCourseTests = emptyList<Test>()
 
     // Только для отображения кнопки долгов
     private var hasDebt = false
@@ -254,6 +255,25 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
             }
 
             Log.d("TestsFragment", "Final currentCourseTestIds: $currentCourseTestIds")
+            currentCourseTests = currentCourseTestIds.mapNotNull { testId ->
+                try {
+                    val testDoc = firestore.collection("tests").document(testId).get().await()
+                    if (!testDoc.exists()) return@mapNotNull null
+                    Test(
+                        id = testDoc.id,
+                        title = testDoc.getString("title") ?: "",
+                        num = testDoc.getLong("num")?.toInt() ?: 0,
+                        semester = testDoc.getLong("semester")?.toInt() ?: 1,
+                        isAvailable = testDoc.getBoolean("isAvailable") ?: true,
+                        hasParts = testDoc.getBoolean("hasParts") ?: true
+                    )
+                } catch (e: Exception) {
+                    Log.e("TestsFragment", "Error loading test by id: $testId", e)
+                    currentCourseTests = emptyList()
+                    null
+                }
+            }.sortedBy { it.num }
+            updateTestsDisplay(currentCourseTests)
 
         } catch (e: Exception) {
             Log.e("TestsFragment", "Error loading tests for course", e)
@@ -349,6 +369,7 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
     }
 
     private fun setupButtons() {
+        binding.debtButton.visibility = View.GONE
         binding.debtButton.setOnClickListener {
             if (hasDebt) {
                 // Открываем фрагмент с долгами
@@ -380,7 +401,9 @@ class TestsFragment : BaseFragment<FragmentTestsBinding>() {
         lifecycleScope.launch {
             mainViewModel.tests.collect { tests: List<Test> ->
                 if (isAdded) {
-                    updateTestsDisplay(tests)
+                    if (currentCourseTests.isEmpty()) {
+                        updateTestsDisplay(tests)
+                    }
                 }
             }
         }
